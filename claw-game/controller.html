@@ -19,17 +19,10 @@
   header h1 span { color:#e10600; }
 
   #statebar { margin:4px 0 8px; padding:8px 20px; border-radius:999px; font-size:14px; font-weight:600;
-    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14); transition:all .3s; }
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14); transition:all .3s; text-align:center; }
   #statebar.good { background:rgba(46,229,107,.15); border-color:#2ee56b; color:#aef5c8; }
   #statebar.warn { background:rgba(255,210,74,.12); border-color:#ffd24a; color:#ffe9a8; }
   #statebar.bad  { background:rgba(225,6,0,.15); border-color:#e10600; color:#ffb3b0; }
-
-  #resultflash { position:fixed; inset:0; display:none; z-index:50; flex-direction:column;
-    align-items:center; justify-content:center; gap:14px; background:rgba(5,5,12,.9); text-align:center; }
-  #resultflash.show { display:flex; }
-  #resultflash .big { font-size:64px; }
-  #resultflash .msg { font-size:26px; font-weight:800; }
-  #resultflash .sub { font-size:14px; color:#9aa; }
 
   #joywrap { flex:1; display:flex; align-items:center; justify-content:center; width:100%; }
   #joybase { position:relative; width:min(62vw, 270px); height:min(62vw, 270px); border-radius:50%;
@@ -43,7 +36,8 @@
   .arrow.right { right:12px; top:50%;  transform:translateY(-50%); }
   #knob { position:absolute; width:38%; height:38%; left:31%; top:31%; border-radius:50%;
     background:linear-gradient(160deg, #ff3b36, #b00500);
-    border:3px solid #ff6a66; box-shadow:0 6px 18px rgba(225,6,0,.5), inset 0 3px 6px rgba(255,255,255,.35); }
+    border:3px solid rgba(255,255,255,.5);
+    box-shadow:0 6px 18px rgba(0,0,0,.5), inset 0 3px 6px rgba(255,255,255,.35); }
 
   #grabbtn { width:min(70vw, 300px); height:76px; border:none; border-radius:20px;
     font-size:24px; font-weight:900; letter-spacing:2px; color:#fff; cursor:pointer;
@@ -54,6 +48,53 @@
   #grabbtn:disabled { filter:grayscale(.8) brightness(.6); box-shadow:0 8px 0 #333; }
 
   footer { margin-top:14px; font-size:11px; color:#556; letter-spacing:1px; }
+
+  /* ---------- name gate ---------- */
+  #gate { position:fixed; inset:0; z-index:60; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:18px; padding:30px;
+    background:radial-gradient(120% 100% at 50% 0%, #1a1a2e 0%, #0a0a12 70%); }
+  #gate .flag { width:54px; height:54px; border-radius:10px; border:3px solid #e10600;
+    background:repeating-conic-gradient(#111 0% 25%, #fff 0% 50%) 0 0/50% 50%; }
+  #gate h2 { font-size:22px; font-weight:800; text-align:center; line-height:1.4; }
+  #gate h2 span { color:#e10600; }
+  #gate p { font-size:13px; color:#9aa; text-align:center; }
+  #nameinput { width:min(80vw, 300px); padding:15px 18px; font-size:19px; font-weight:700;
+    border-radius:14px; border:2px solid rgba(255,255,255,.2); outline:none; text-align:center;
+    background:rgba(255,255,255,.07); color:#fff; user-select:text; -webkit-user-select:text; }
+  #nameinput:focus { border-color:#e10600; }
+  #joinbtn { width:min(80vw, 300px); padding:16px; font-size:19px; font-weight:900; letter-spacing:1px;
+    border:none; border-radius:14px; color:#fff; cursor:pointer;
+    background:linear-gradient(180deg, #ff3b36, #b00500);
+    box-shadow:0 6px 0 #7a0300; }
+  #joinbtn:active { transform:translateY(4px); box-shadow:0 2px 0 #7a0300; }
+  #joinbtn:disabled { filter:grayscale(.7) brightness(.6); }
+
+  /* ---------- prize ticket ---------- */
+  #ticket { position:fixed; inset:0; z-index:70; display:none; flex-direction:column;
+    align-items:center; justify-content:center; gap:10px; padding:26px;
+    background:rgba(5,5,12,.96); text-align:center; }
+  #ticket.show { display:flex; }
+  #ticket .card { width:min(88vw, 350px); background:linear-gradient(170deg, #fffef5, #ffe9b8);
+    color:#1a1208; border-radius:20px; padding:26px 22px;
+    box-shadow:0 0 60px rgba(255,210,74,.45); border:3px dashed #c9a23f; }
+  #ticket .card .head { font-size:13px; letter-spacing:3px; color:#8a6d1f; font-weight:800; }
+  #ticket .card .emoji { font-size:62px; margin:10px 0 4px; }
+  #ticket .card .prize { font-size:24px; font-weight:900; }
+  #ticket .card .who { margin-top:6px; font-size:15px; }
+  #ticket .card .who b { color:#b00500; }
+  #ticket .card .code { margin-top:14px; font-family:monospace; font-size:30px; font-weight:800;
+    letter-spacing:3px; background:#1a1208; color:#2ee56b; border-radius:10px; padding:8px 0; }
+  #ticket .card .time { margin-top:8px; font-size:11px; color:#8a6d1f; }
+  #ticket .notice { font-size:14px; color:#ffd24a; font-weight:700; line-height:1.5; }
+  #ticket .count { font-size:12px; color:#9aa; }
+  #ticket .closebtn { margin-top:6px; padding:12px 34px; font-size:15px; font-weight:700;
+    border:1px solid rgba(255,255,255,.3); border-radius:999px; background:none; color:#fff; cursor:pointer; }
+
+  #prizebadge { position:fixed; right:14px; top:max(14px, env(safe-area-inset-top)); z-index:55;
+    display:none; padding:10px 16px; border-radius:999px; font-size:14px; font-weight:800;
+    background:linear-gradient(180deg, #ffd24a, #ff9d1a); color:#3a2500; border:none;
+    box-shadow:0 4px 16px rgba(255,157,26,.5); cursor:pointer; }
+  #prizebadge.show { display:block; }
 </style>
 </head>
 <body>
@@ -62,7 +103,7 @@
     <div class="flag"></div>
     <h1>SUPER <span>RACE</span> 뽑기 컨트롤러</h1>
   </header>
-  <div id="statebar">연결 중…</div>
+  <div id="statebar">이름을 입력해 주세요</div>
   <div id="joywrap">
     <div id="joybase">
       <span class="arrow up">▲</span><span class="arrow down">▼</span>
@@ -74,11 +115,30 @@
   <footer>SUPER RACE MD STORE</footer>
 </div>
 
-<div id="resultflash">
-  <div class="big" id="rf-emoji">🎉</div>
-  <div class="msg" id="rf-msg">당첨!</div>
-  <div class="sub" id="rf-sub">화면을 터치하면 계속합니다</div>
+<!-- name entry -->
+<div id="gate">
+  <div class="flag"></div>
+  <h2>SUPER <span>RACE</span> 뽑기<br>참가하기</h2>
+  <p>화면 속 집게에 표시될 이름을 입력하세요 (최대 8자)</p>
+  <input id="nameinput" maxlength="8" placeholder="이름 입력" autocomplete="off" enterkeyhint="go">
+  <button id="joinbtn">🏁 입장하기</button>
 </div>
+
+<!-- prize ticket -->
+<div id="ticket">
+  <div class="card">
+    <div class="head">PRIZE TICKET · 경품 교환권</div>
+    <div class="emoji" id="tk-emoji">🎁</div>
+    <div class="prize" id="tk-prize">-</div>
+    <div class="who">당첨자 <b id="tk-name">-</b></div>
+    <div class="code" id="tk-code">-</div>
+    <div class="time" id="tk-time"></div>
+  </div>
+  <div class="notice">📢 이 화면을 현장 관리자에게 보여주시면<br>경품으로 교환해 드립니다</div>
+  <div class="count" id="tk-count"></div>
+  <button class="closebtn" id="tk-close">닫고 계속 뽑기</button>
+</div>
+<button id="prizebadge">🎁 내 경품 보기</button>
 
 <script src="lib/peerjs.min.js"></script>
 <script>
@@ -88,7 +148,11 @@ const stateBar = document.getElementById('statebar');
 const grabBtn = document.getElementById('grabbtn');
 const joyBase = document.getElementById('joybase');
 const knob = document.getElementById('knob');
-const flash = document.getElementById('resultflash');
+const gate = document.getElementById('gate');
+const nameInput = document.getElementById('nameinput');
+const joinBtn = document.getElementById('joinbtn');
+const ticket = document.getElementById('ticket');
+const prizeBadge = document.getElementById('prizebadge');
 
 function setState(msg, cls) {
   stateBar.textContent = msg;
@@ -98,18 +162,63 @@ function setState(msg, cls) {
 function vibrate(pat) { if (navigator.vibrate) try { navigator.vibrate(pat); } catch(e){} }
 
 if (!roomId) {
-  setState('잘못된 접속입니다. 화면의 QR을 다시 스캔해 주세요.', 'bad');
-  throw new Error('no room');
+  gate.querySelector('p').textContent = '잘못된 접속입니다. 화면의 QR을 다시 스캔해 주세요.';
+  joinBtn.disabled = true;
+  nameInput.disabled = true;
 }
+
+// ---------- name gate ----------
+let myName = '';
+nameInput.value = localStorage.getItem('srclaw-name') || '';
+function join() {
+  const n = nameInput.value.trim().slice(0, 8);
+  if (!n) { nameInput.focus(); return; }
+  myName = n;
+  localStorage.setItem('srclaw-name', n);
+  gate.style.display = 'none';
+  connect();
+}
+joinBtn.addEventListener('click', join);
+nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
+
+// ---------- prize tickets ----------
+const myPrizes = [];
+function showTicket(i) {
+  const t = myPrizes[i];
+  if (!t) return;
+  document.getElementById('tk-emoji').textContent = t.prize.emoji;
+  document.getElementById('tk-prize').textContent = t.prize.name;
+  document.getElementById('tk-name').textContent = t.player;
+  document.getElementById('tk-code').textContent = t.code;
+  document.getElementById('tk-time').textContent = t.time;
+  document.getElementById('tk-count').textContent =
+    myPrizes.length > 1 ? `내 경품 ${i+1} / ${myPrizes.length} — 카드를 탭하면 다음 경품` : '';
+  ticket.dataset.idx = i;
+  ticket.classList.add('show');
+}
+ticket.querySelector('.card').addEventListener('pointerdown', () => {
+  if (myPrizes.length < 2) return;
+  showTicket((Number(ticket.dataset.idx) + 1) % myPrizes.length);
+});
+document.getElementById('tk-close').addEventListener('click', () => {
+  ticket.classList.remove('show');
+  if (myPrizes.length) prizeBadge.classList.add('show');
+});
+prizeBadge.addEventListener('click', () => showTicket(myPrizes.length - 1));
 
 // ---------- networking ----------
 let peer = null, conn = null, role = null, closing = false;
 function connect() {
   setState('연결 중…', null);
+  try { peer && peer.destroy(); } catch(e){}
   peer = new Peer();
   peer.on('open', () => {
     conn = peer.connect(roomId, { reliable: true });
-    conn.on('open', () => { setState('연결됨 — 역할 배정 중…', null); vibrate(30); });
+    conn.on('open', () => {
+      setState('연결됨 — 입장 중…', null);
+      vibrate(30);
+      conn.send({ t:'hello', name: myName });
+    });
     conn.on('data', onData);
     conn.on('close', onLost);
     conn.on('error', onLost);
@@ -124,35 +233,37 @@ function onLost() {
   role = null;
   grabBtn.disabled = true;
   setState('연결이 끊겼어요 — 다시 연결 중…', 'bad');
-  try { peer && peer.destroy(); } catch(e){}
   setTimeout(connect, 2500);
 }
 function onData(d) {
   if (!d || typeof d !== 'object') return;
   if (d.t === 'role') {
     role = d.v;
-    if (role === 'active') { setState('🎮 당신 차례! 조종하세요', 'good'); grabBtn.disabled = false; vibrate([40,60,40]); }
-    else setState('다른 분이 플레이 중 — 잠시만 기다려 주세요', 'warn');
+    if (role === 'active') {
+      setState(`🎮 ${myName}님, 집게를 조종하세요!`, 'good');
+      grabBtn.disabled = false;
+      if (d.color) knob.style.background = `linear-gradient(160deg, ${d.color}, #222)`;
+      vibrate([40,60,40]);
+    } else {
+      setState(`자리가 꽉 찼어요 — 대기 ${d.pos || ''}번째`, 'warn');
+      grabBtn.disabled = true;
+    }
   } else if (d.t === 'phase') {
     if (d.v === 'grab') { setState('집게 작동 중…', 'warn'); grabBtn.disabled = true; }
-    else if (d.v === 'slip') { setState('앗, 놓쳤어요! 😭', 'bad'); vibrate(200); }
-    else if (d.v === 'play') { setState('🎮 당신 차례! 조종하세요', 'good'); grabBtn.disabled = (role !== 'active'); }
-  } else if (d.t === 'result') {
-    if (d.win) {
-      vibrate([100,50,100,50,300]);
-      showFlash('🎉', '당첨!', '경품을 받아가세요!');
-    }
+    else if (d.v === 'caught') { setState('잡았다! 배출구로 이동 중… 🤞', 'good'); vibrate(80); }
+    else if (d.v === 'miss') { setState('아쉽다! 다시 도전해 보세요', 'warn'); }
+    else if (d.v === 'slip') { setState('앗, 미끄러졌어요! 😭', 'bad'); vibrate(200); }
+    else if (d.v === 'play') { setState(`🎮 ${myName}님, 집게를 조종하세요!`, 'good'); grabBtn.disabled = (role !== 'active'); }
+  } else if (d.t === 'result' && d.win) {
+    vibrate([100,50,100,50,300]);
+    myPrizes.push({
+      prize: d.prize, code: d.code, player: d.player || myName,
+      time: new Date().toLocaleString('ko-KR'),
+    });
+    showTicket(myPrizes.length - 1);
+    prizeBadge.classList.add('show');
   }
 }
-function showFlash(emoji, msg, sub) {
-  document.getElementById('rf-emoji').textContent = emoji;
-  document.getElementById('rf-msg').textContent = msg;
-  document.getElementById('rf-sub').textContent = sub;
-  flash.classList.add('show');
-}
-flash.addEventListener('pointerdown', () => flash.classList.remove('show'));
-connect();
-
 function send(obj) { if (conn && conn.open && role === 'active') try { conn.send(obj); } catch(e){} }
 
 // ---------- joystick ----------
@@ -187,7 +298,6 @@ function moveJoy(e) {
   joy.x = nx; joy.y = ny;
   setKnob(nx, ny);
 }
-// stream joystick at 20 Hz while touched
 setInterval(() => { if (joy.active) send({ t:'joy', x:+joy.x.toFixed(2), y:+joy.y.toFixed(2) }); }, 50);
 
 // ---------- grab button ----------
