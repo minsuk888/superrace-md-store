@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>SUPER RACE 뽑기 컨트롤러</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+  html,body { width:100%; height:100%; overflow:hidden; touch-action:none;
+    font-family:'Segoe UI','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+    background:radial-gradient(120% 100% at 50% 0%, #1a1a2e 0%, #0a0a12 70%); color:#fff; }
+  #app { height:100%; display:flex; flex-direction:column; align-items:center;
+    padding:max(18px, env(safe-area-inset-top)) 20px max(26px, env(safe-area-inset-bottom)); }
+
+  header { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+  header .flag { width:30px; height:30px; border-radius:6px; border:2px solid #e10600;
+    background:repeating-conic-gradient(#111 0% 25%, #fff 0% 50%) 0 0/50% 50%; }
+  header h1 { font-size:18px; font-weight:800; }
+  header h1 span { color:#e10600; }
+
+  #statebar { margin:4px 0 8px; padding:8px 20px; border-radius:999px; font-size:14px; font-weight:600;
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14); transition:all .3s; }
+  #statebar.good { background:rgba(46,229,107,.15); border-color:#2ee56b; color:#aef5c8; }
+  #statebar.warn { background:rgba(255,210,74,.12); border-color:#ffd24a; color:#ffe9a8; }
+  #statebar.bad  { background:rgba(225,6,0,.15); border-color:#e10600; color:#ffb3b0; }
+
+  #resultflash { position:fixed; inset:0; display:none; z-index:50; flex-direction:column;
+    align-items:center; justify-content:center; gap:14px; background:rgba(5,5,12,.9); text-align:center; }
+  #resultflash.show { display:flex; }
+  #resultflash .big { font-size:64px; }
+  #resultflash .msg { font-size:26px; font-weight:800; }
+  #resultflash .sub { font-size:14px; color:#9aa; }
+
+  #joywrap { flex:1; display:flex; align-items:center; justify-content:center; width:100%; }
+  #joybase { position:relative; width:min(62vw, 270px); height:min(62vw, 270px); border-radius:50%;
+    background:radial-gradient(circle at 50% 42%, #23233a, #14141f 75%);
+    border:2px solid rgba(255,255,255,.14);
+    box-shadow:inset 0 8px 26px rgba(0,0,0,.6), 0 4px 20px rgba(0,0,0,.4); }
+  #joybase .arrow { position:absolute; font-size:20px; color:rgba(255,255,255,.25); }
+  .arrow.up    { top:10px;   left:50%; transform:translateX(-50%); }
+  .arrow.down  { bottom:10px;left:50%; transform:translateX(-50%); }
+  .arrow.left  { left:12px;  top:50%;  transform:translateY(-50%); }
+  .arrow.right { right:12px; top:50%;  transform:translateY(-50%); }
+  #knob { position:absolute; width:38%; height:38%; left:31%; top:31%; border-radius:50%;
+    background:linear-gradient(160deg, #ff3b36, #b00500);
+    border:3px solid #ff6a66; box-shadow:0 6px 18px rgba(225,6,0,.5), inset 0 3px 6px rgba(255,255,255,.35); }
+
+  #grabbtn { width:min(70vw, 300px); height:76px; border:none; border-radius:20px;
+    font-size:24px; font-weight:900; letter-spacing:2px; color:#fff; cursor:pointer;
+    background:linear-gradient(180deg, #ff9d1a, #e10600);
+    box-shadow:0 8px 0 #7a0300, 0 12px 24px rgba(225,6,0,.4);
+    transition:transform .08s, box-shadow .08s; }
+  #grabbtn:active, #grabbtn.pressed { transform:translateY(6px); box-shadow:0 2px 0 #7a0300; }
+  #grabbtn:disabled { filter:grayscale(.8) brightness(.6); box-shadow:0 8px 0 #333; }
+
+  footer { margin-top:14px; font-size:11px; color:#556; letter-spacing:1px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="flag"></div>
+    <h1>SUPER <span>RACE</span> 뽑기 컨트롤러</h1>
+  </header>
+  <div id="statebar">연결 중…</div>
+  <div id="joywrap">
+    <div id="joybase">
+      <span class="arrow up">▲</span><span class="arrow down">▼</span>
+      <span class="arrow left">◀</span><span class="arrow right">▶</span>
+      <div id="knob"></div>
+    </div>
+  </div>
+  <button id="grabbtn" disabled>🕹️ 잡기!</button>
+  <footer>SUPER RACE MD STORE</footer>
+</div>
+
+<div id="resultflash">
+  <div class="big" id="rf-emoji">🎉</div>
+  <div class="msg" id="rf-msg">당첨!</div>
+  <div class="sub" id="rf-sub">화면을 터치하면 계속합니다</div>
+</div>
+
+<script src="lib/peerjs.min.js"></script>
+<script>
+'use strict';
+const roomId = new URLSearchParams(location.search).get('r');
+const stateBar = document.getElementById('statebar');
+const grabBtn = document.getElementById('grabbtn');
+const joyBase = document.getElementById('joybase');
+const knob = document.getElementById('knob');
+const flash = document.getElementById('resultflash');
+
+function setState(msg, cls) {
+  stateBar.textContent = msg;
+  stateBar.className = '';
+  if (cls) stateBar.classList.add(cls);
+}
+function vibrate(pat) { if (navigator.vibrate) try { navigator.vibrate(pat); } catch(e){} }
+
+if (!roomId) {
+  setState('잘못된 접속입니다. 화면의 QR을 다시 스캔해 주세요.', 'bad');
+  throw new Error('no room');
+}
+
+// ---------- networking ----------
+let peer = null, conn = null, role = null, closing = false;
+function connect() {
+  setState('연결 중…', null);
+  peer = new Peer();
+  peer.on('open', () => {
+    conn = peer.connect(roomId, { reliable: true });
+    conn.on('open', () => { setState('연결됨 — 역할 배정 중…', null); vibrate(30); });
+    conn.on('data', onData);
+    conn.on('close', onLost);
+    conn.on('error', onLost);
+  });
+  peer.on('error', err => {
+    if (err.type === 'peer-unavailable') setState('게임 화면을 찾을 수 없어요. QR을 다시 스캔해 주세요.', 'bad');
+    else onLost();
+  });
+}
+function onLost() {
+  if (closing) return;
+  role = null;
+  grabBtn.disabled = true;
+  setState('연결이 끊겼어요 — 다시 연결 중…', 'bad');
+  try { peer && peer.destroy(); } catch(e){}
+  setTimeout(connect, 2500);
+}
+function onData(d) {
+  if (!d || typeof d !== 'object') return;
+  if (d.t === 'role') {
+    role = d.v;
+    if (role === 'active') { setState('🎮 당신 차례! 조종하세요', 'good'); grabBtn.disabled = false; vibrate([40,60,40]); }
+    else setState('다른 분이 플레이 중 — 잠시만 기다려 주세요', 'warn');
+  } else if (d.t === 'phase') {
+    if (d.v === 'grab') { setState('집게 작동 중…', 'warn'); grabBtn.disabled = true; }
+    else if (d.v === 'slip') { setState('앗, 놓쳤어요! 😭', 'bad'); vibrate(200); }
+    else if (d.v === 'play') { setState('🎮 당신 차례! 조종하세요', 'good'); grabBtn.disabled = (role !== 'active'); }
+  } else if (d.t === 'result') {
+    if (d.win) {
+      vibrate([100,50,100,50,300]);
+      showFlash('🎉', '당첨!', '경품을 받아가세요!');
+    }
+  }
+}
+function showFlash(emoji, msg, sub) {
+  document.getElementById('rf-emoji').textContent = emoji;
+  document.getElementById('rf-msg').textContent = msg;
+  document.getElementById('rf-sub').textContent = sub;
+  flash.classList.add('show');
+}
+flash.addEventListener('pointerdown', () => flash.classList.remove('show'));
+connect();
+
+function send(obj) { if (conn && conn.open && role === 'active') try { conn.send(obj); } catch(e){} }
+
+// ---------- joystick ----------
+const joy = { x:0, y:0, active:false, pid:null };
+function joyRect() { return joyBase.getBoundingClientRect(); }
+function setKnob(nx, ny) {
+  const r = joyRect();
+  const max = r.width * 0.30;
+  knob.style.transform = `translate(${nx*max}px, ${ny*max}px)`;
+}
+joyBase.addEventListener('pointerdown', e => {
+  joy.active = true; joy.pid = e.pointerId;
+  joyBase.setPointerCapture(e.pointerId);
+  moveJoy(e);
+});
+joyBase.addEventListener('pointermove', e => { if (joy.active && e.pointerId === joy.pid) moveJoy(e); });
+function endJoy(e) {
+  if (e.pointerId !== joy.pid) return;
+  joy.active = false; joy.x = joy.y = 0;
+  setKnob(0, 0);
+  send({ t:'joy', x:0, y:0 });
+}
+joyBase.addEventListener('pointerup', endJoy);
+joyBase.addEventListener('pointercancel', endJoy);
+function moveJoy(e) {
+  const r = joyRect();
+  const cx = r.left + r.width/2, cy = r.top + r.height/2;
+  let nx = (e.clientX - cx) / (r.width*0.38);
+  let ny = (e.clientY - cy) / (r.height*0.38);
+  const len = Math.hypot(nx, ny);
+  if (len > 1) { nx /= len; ny /= len; }
+  joy.x = nx; joy.y = ny;
+  setKnob(nx, ny);
+}
+// stream joystick at 20 Hz while touched
+setInterval(() => { if (joy.active) send({ t:'joy', x:+joy.x.toFixed(2), y:+joy.y.toFixed(2) }); }, 50);
+
+// ---------- grab button ----------
+grabBtn.addEventListener('pointerdown', () => {
+  if (grabBtn.disabled) return;
+  grabBtn.classList.add('pressed');
+  vibrate(60);
+  send({ t:'grab' });
+});
+grabBtn.addEventListener('pointerup', () => grabBtn.classList.remove('pressed'));
+
+addEventListener('beforeunload', () => {
+  closing = true;
+  try { conn && conn.open && conn.send({ t:'bye' }); } catch(e){}
+});
+</script>
+</body>
+</html>

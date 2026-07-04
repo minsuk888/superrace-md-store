@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>SUPER RACE 3D 인형뽑기</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#0a0a12; font-family:'Segoe UI','Apple SD Gothic Neo','Malgun Gothic',sans-serif; }
+  #scene { position:absolute; inset:0; }
+  .overlay { position:absolute; z-index:10; color:#fff; }
+
+  #brand { top:24px; left:28px; display:flex; align-items:center; gap:14px; }
+  #brand .flag { width:44px; height:44px; border-radius:8px;
+    background:
+      repeating-conic-gradient(#111 0% 25%, #fff 0% 50%) 0 0/50% 50%; border:2px solid #e10600; }
+  #brand h1 { font-size:26px; font-weight:800; letter-spacing:1px; }
+  #brand h1 span { color:#e10600; }
+  #brand small { display:block; font-size:12px; font-weight:400; color:#9aa; letter-spacing:3px; }
+
+  #qrcard { top:24px; right:28px; background:rgba(255,255,255,.97); color:#111;
+    border-radius:16px; padding:18px 18px 14px; text-align:center;
+    box-shadow:0 8px 40px rgba(225,6,0,.35); transition:all .4s; }
+  #qrcard.mini { transform:scale(.55); transform-origin:top right; opacity:.85; }
+  #qrcard h2 { font-size:15px; margin-bottom:10px; font-weight:700; }
+  #qrcard h2 b { color:#e10600; }
+  #qr { width:180px; height:180px; margin:0 auto; }
+  #qr img, #qr canvas { width:100% !important; height:100% !important; }
+  #roomtag { margin-top:8px; font-size:11px; color:#888; letter-spacing:1px; }
+
+  #status { left:50%; bottom:34px; transform:translateX(-50%);
+    background:rgba(10,10,20,.72); border:1px solid rgba(255,255,255,.15);
+    backdrop-filter:blur(8px); border-radius:999px; padding:14px 34px;
+    font-size:20px; font-weight:600; white-space:nowrap; }
+  #status .dot { display:inline-block; width:10px; height:10px; border-radius:50%;
+    background:#666; margin-right:10px; vertical-align:2px; }
+  #status.on .dot { background:#2ee56b; box-shadow:0 0 10px #2ee56b; }
+
+  #score { top:100px; left:28px; display:flex; gap:16px; }
+  .scorebox { background:rgba(10,10,20,.7); border:1px solid rgba(255,255,255,.12);
+    border-radius:12px; padding:8px 22px; text-align:center; }
+  .scorebox .n { font-size:26px; font-weight:800; color:#ffd24a; }
+  .scorebox .l { font-size:11px; color:#9aa; letter-spacing:2px; }
+
+  #bigmsg { left:50%; top:42%; transform:translate(-50%,-50%); font-size:72px; font-weight:900;
+    text-shadow:0 4px 30px rgba(0,0,0,.6); opacity:0; pointer-events:none;
+    transition:opacity .3s, transform .3s; color:#ffd24a; letter-spacing:2px; }
+  #bigmsg.show { opacity:1; transform:translate(-50%,-50%) scale(1.08); }
+
+  .confetti { position:absolute; width:10px; height:16px; z-index:20; top:-20px;
+    animation:fall linear forwards; pointer-events:none; }
+  @keyframes fall {
+    to { transform:translateY(110vh) rotate(720deg); opacity:.9; }
+  }
+  #hint { right:28px; bottom:30px; font-size:12px; color:#667; text-align:right; line-height:1.7; }
+</style>
+</head>
+<body>
+<div id="scene"></div>
+
+<div class="overlay" id="brand">
+  <div class="flag"></div>
+  <h1>SUPER <span>RACE</span> 뽑기<small>MD STORE CLAW MACHINE</small></h1>
+</div>
+
+<div class="overlay" id="score">
+  <div class="scorebox"><div class="n" id="plays">0</div><div class="l">PLAYS</div></div>
+  <div class="scorebox"><div class="n" id="wins">0</div><div class="l">WINS</div></div>
+</div>
+
+<div class="overlay" id="qrcard">
+  <h2>📱 QR 스캔해서 <b>조종하기</b></h2>
+  <div id="qr"></div>
+  <div id="roomtag">연결 준비 중…</div>
+</div>
+
+<div class="overlay" id="status"><span class="dot"></span><span id="statustext">폰으로 QR을 스캔하면 게임이 시작됩니다</span></div>
+<div class="overlay" id="bigmsg">🎉 당첨!</div>
+<div class="overlay" id="hint">키보드로도 가능: 방향키 이동 / 스페이스 잡기</div>
+
+<script src="lib/three.min.js"></script>
+<script src="lib/qrcode.min.js"></script>
+<script src="lib/peerjs.min.js"></script>
+<script>
+'use strict';
+// ============================================================
+//  SUPER RACE 3D Claw Machine — big screen (kiosk) page
+//  phone controller connects via WebRTC (PeerJS public cloud)
+// ============================================================
+
+// ---------- constants ----------
+const BOUNDS = { minX:-1.95, maxX:1.95, minZ:-1.30, maxZ:1.30 };
+const RAIL_Y = 3.35;            // claw head travel height
+const FLOOR_Y = 0;
+const HOLE = { x:-1.42, z:0.88, r:0.46 };   // prize chute (front-left)
+const HOME = { x:0.4, z:0.2 };
+const PRIZE_R = 0.27;
+const CLAW_SPEED = 2.0;
+const GRAVITY = 9.8;
+
+// ---------- three.js scene ----------
+const container = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0a12);
+scene.fog = new THREE.Fog(0x0a0a12, 14, 26);
+
+const camera = new THREE.PerspectiveCamera(46, innerWidth/innerHeight, 0.1, 60);
+camera.position.set(0, 4.6, 8.6);
+camera.lookAt(0, 1.6, 0);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+const key = new THREE.DirectionalLight(0xffffff, 1.1);
+key.position.set(4, 9, 6);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.left = -6; key.shadow.camera.right = 6;
+key.shadow.camera.top = 6;   key.shadow.camera.bottom = -6;
+scene.add(key);
+const rim = new THREE.PointLight(0xe10600, 1.4, 15);
+rim.position.set(-5, 3, -3);
+scene.add(rim);
+const fill = new THREE.PointLight(0x4a7bff, 0.8, 15);
+fill.position.set(5, 2, 4);
+scene.add(fill);
+
+// ground
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(60, 60),
+  new THREE.MeshStandardMaterial({ color:0x101018, roughness:0.9 })
+);
+ground.rotation.x = -Math.PI/2;
+ground.position.y = -1.5;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ---------- cabinet ----------
+const machine = new THREE.Group();
+scene.add(machine);
+
+const redMat   = new THREE.MeshStandardMaterial({ color:0xe10600, roughness:0.35, metalness:0.3 });
+const darkMat  = new THREE.MeshStandardMaterial({ color:0x16161f, roughness:0.6, metalness:0.4 });
+const glassMat = new THREE.MeshPhongMaterial({ color:0xbfe6ff, transparent:true, opacity:0.10, shininess:120, side:THREE.DoubleSide });
+
+// base cabinet
+const base = new THREE.Mesh(new THREE.BoxGeometry(5.0, 1.5, 3.6), redMat);
+base.position.y = -0.75;
+base.castShadow = base.receiveShadow = true;
+machine.add(base);
+const baseTrim = new THREE.Mesh(new THREE.BoxGeometry(5.1, 0.18, 3.7), darkMat);
+baseTrim.position.y = -0.02;
+machine.add(baseTrim);
+
+// play floor
+const floorMesh = new THREE.Mesh(
+  new THREE.BoxGeometry(4.6, 0.1, 3.2),
+  new THREE.MeshStandardMaterial({ color:0x22222e, roughness:0.8 })
+);
+floorMesh.position.y = -0.05;
+floorMesh.receiveShadow = true;
+machine.add(floorMesh);
+
+// chute hole (visual)
+const holeMesh = new THREE.Mesh(
+  new THREE.CylinderGeometry(HOLE.r, HOLE.r, 0.14, 32),
+  new THREE.MeshBasicMaterial({ color:0x000000 })
+);
+holeMesh.position.set(HOLE.x, 0.02, HOLE.z);
+machine.add(holeMesh);
+const holeRim = new THREE.Mesh(
+  new THREE.TorusGeometry(HOLE.r, 0.045, 12, 40),
+  new THREE.MeshStandardMaterial({ color:0xffd24a, roughness:0.3, metalness:0.6, emissive:0x553300 })
+);
+holeRim.rotation.x = Math.PI/2;
+holeRim.position.set(HOLE.x, 0.06, HOLE.z);
+machine.add(holeRim);
+
+// glass walls + pillars + top
+const H = 3.9;
+function wall(w, h, x, z, ry) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), glassMat);
+  m.position.set(x, h/2, z);
+  m.rotation.y = ry;
+  machine.add(m);
+}
+wall(4.6, H,  0,  1.62, 0);
+wall(4.6, H,  0, -1.62, 0);
+wall(3.2, H, -2.32, 0, Math.PI/2);
+wall(3.2, H,  2.32, 0, Math.PI/2);
+[[-2.32,-1.62],[2.32,-1.62],[-2.32,1.62],[2.32,1.62]].forEach(([x,z])=>{
+  const p = new THREE.Mesh(new THREE.BoxGeometry(0.16, H, 0.16), darkMat);
+  p.position.set(x, H/2, z);
+  p.castShadow = true;
+  machine.add(p);
+});
+const topLid = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.5, 3.6), redMat);
+topLid.position.y = H + 0.25;
+topLid.castShadow = true;
+machine.add(topLid);
+
+// marquee (canvas texture)
+const mcv = document.createElement('canvas');
+mcv.width = 1024; mcv.height = 160;
+const mctx = mcv.getContext('2d');
+(function drawMarquee(){
+  mctx.fillStyle = '#111';
+  mctx.fillRect(0,0,1024,160);
+  const s = 20;
+  for (let i=0;i<1024/s;i++) for (let j=0;j<2;j++) {
+    if ((i+j)%2===0) { mctx.fillStyle='#fff'; mctx.fillRect(i*s, j===0?0:160-s, s, s); }
+  }
+  mctx.fillStyle = '#ffd24a';
+  mctx.font = '900 74px sans-serif';
+  mctx.textAlign = 'center'; mctx.textBaseline = 'middle';
+  mctx.fillText('SUPER RACE 뽑기', 512, 82);
+})();
+const marquee = new THREE.Mesh(
+  new THREE.PlaneGeometry(4.6, 0.72),
+  new THREE.MeshBasicMaterial({ map:new THREE.CanvasTexture(mcv) })
+);
+marquee.position.set(0, H + 0.62, 1.81);
+machine.add(marquee);
+const marqueeBox = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.8, 3.6), darkMat);
+marqueeBox.position.y = H + 0.62;
+marqueeBox.position.z = -0.02;
+marqueeBox.scale.z = 0.99;
+machine.add(marqueeBox);
+
+// ---------- claw ----------
+const claw = new THREE.Group();
+scene.add(claw);
+const trolley = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.22, 0.5), darkMat);
+trolley.castShadow = true;
+claw.add(trolley);
+const cable = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.025, 0.025, 1, 8),
+  new THREE.MeshStandardMaterial({ color:0x888899, metalness:0.7, roughness:0.4 })
+);
+claw.add(cable);
+const head = new THREE.Group();
+claw.add(head);
+const headBall = new THREE.Mesh(
+  new THREE.SphereGeometry(0.17, 20, 16),
+  new THREE.MeshStandardMaterial({ color:0xffd24a, metalness:0.6, roughness:0.3 })
+);
+headBall.castShadow = true;
+head.add(headBall);
+
+const fingers = [];
+const fingerMat = new THREE.MeshStandardMaterial({ color:0xccccd6, metalness:0.8, roughness:0.3 });
+for (let i=0;i<3;i++) {
+  const pivot = new THREE.Group();
+  pivot.rotation.y = i * Math.PI*2/3;
+  const seg1 = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.45, 0.07), fingerMat);
+  seg1.position.set(0.14, -0.2, 0);
+  seg1.castShadow = true;
+  const seg2 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.38, 0.06), fingerMat);
+  seg2.position.set(0, -0.36, 0);
+  seg2.rotation.z = 0.55;
+  seg1.add(seg2);
+  pivot.add(seg1);
+  head.add(pivot);
+  fingers.push(seg1);
+}
+// openness t: 0 = closed, 1 = open
+function setFingers(t) {
+  fingers.forEach(f => { f.rotation.z = -0.15 - t*0.75; });
+}
+
+// rail bar
+const railBar = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.1, 0.12), darkMat);
+railBar.position.y = RAIL_Y + 0.16;
+scene.add(railBar);
+
+// ---------- prizes (capsule balls) ----------
+const CAPSULE_COLORS = [0xe10600, 0xffd24a, 0x2e9cff, 0x2ee56b, 0xff7ab8, 0xff8c1a];
+const prizes = [];
+function makePrize(x, y, z) {
+  const g = new THREE.Group();
+  const col = CAPSULE_COLORS[Math.floor(Math.random()*CAPSULE_COLORS.length)];
+  const topHemi = new THREE.Mesh(
+    new THREE.SphereGeometry(PRIZE_R, 20, 12, 0, Math.PI*2, 0, Math.PI/2),
+    new THREE.MeshStandardMaterial({ color:col, roughness:0.25, metalness:0.05 })
+  );
+  const botHemi = new THREE.Mesh(
+    new THREE.SphereGeometry(PRIZE_R, 20, 12, 0, Math.PI*2, Math.PI/2, Math.PI/2),
+    new THREE.MeshStandardMaterial({ color:0xf2f2f2, roughness:0.35 })
+  );
+  topHemi.castShadow = botHemi.castShadow = true;
+  g.add(topHemi, botHemi);
+  g.position.set(x, y, z);
+  scene.add(g);
+  const p = { mesh:g, pos:g.position, vel:new THREE.Vector3(), held:false, gone:false,
+              spin:new THREE.Vector3((Math.random()-.5), (Math.random()-.5), (Math.random()-.5)) };
+  prizes.push(p);
+  return p;
+}
+function spawnPrizes(n) {
+  let tries = 0;
+  while (prizes.filter(p=>!p.gone).length < n && tries++ < 300) {
+    const x = BOUNDS.minX + 0.3 + Math.random()*(BOUNDS.maxX-BOUNDS.minX-0.6);
+    const z = BOUNDS.minZ + 0.3 + Math.random()*(BOUNDS.maxZ-BOUNDS.minZ-0.6);
+    if (Math.hypot(x-HOLE.x, z-HOLE.z) < HOLE.r + PRIZE_R + 0.25) continue;
+    makePrize(x, 0.4 + Math.random()*1.4, z);
+  }
+}
+spawnPrizes(14);
+
+// ---------- physics ----------
+function physicsStep(dt) {
+  for (const p of prizes) {
+    if (p.held || p.gone) continue;
+    p.vel.y -= GRAVITY * dt;
+    p.pos.addScaledVector(p.vel, dt);
+    p.mesh.rotation.x += p.spin.x * p.vel.length() * dt;
+    p.mesh.rotation.z += p.spin.z * p.vel.length() * dt;
+
+    const overHole = Math.hypot(p.pos.x-HOLE.x, p.pos.z-HOLE.z) < HOLE.r - PRIZE_R*0.25;
+    if (overHole) {
+      // fall through the chute
+      if (p.pos.y < -1.2 && !p.gone) prizeInHole(p);
+      continue;
+    }
+    // floor
+    if (p.pos.y < FLOOR_Y + PRIZE_R) {
+      p.pos.y = FLOOR_Y + PRIZE_R;
+      if (p.vel.y < 0) p.vel.y = -p.vel.y * 0.25;
+      if (Math.abs(p.vel.y) < 0.4) p.vel.y = 0;
+      p.vel.x *= 0.92; p.vel.z *= 0.92;
+    }
+    // walls
+    if (p.pos.x < BOUNDS.minX-0.15+PRIZE_R) { p.pos.x = BOUNDS.minX-0.15+PRIZE_R; p.vel.x = Math.abs(p.vel.x)*0.4; }
+    if (p.pos.x > BOUNDS.maxX+0.15-PRIZE_R) { p.pos.x = BOUNDS.maxX+0.15-PRIZE_R; p.vel.x = -Math.abs(p.vel.x)*0.4; }
+    if (p.pos.z < BOUNDS.minZ-0.15+PRIZE_R) { p.pos.z = BOUNDS.minZ-0.15+PRIZE_R; p.vel.z = Math.abs(p.vel.z)*0.4; }
+    if (p.pos.z > BOUNDS.maxZ+0.15-PRIZE_R) { p.pos.z = BOUNDS.maxZ+0.15-PRIZE_R; p.vel.z = -Math.abs(p.vel.z)*0.4; }
+  }
+  // sphere-sphere separation
+  for (let i=0;i<prizes.length;i++) {
+    const a = prizes[i];
+    if (a.held || a.gone) continue;
+    for (let j=i+1;j<prizes.length;j++) {
+      const b = prizes[j];
+      if (b.held || b.gone) continue;
+      const d = new THREE.Vector3().subVectors(b.pos, a.pos);
+      const dist = d.length();
+      const min = PRIZE_R*2;
+      if (dist > 0.0001 && dist < min) {
+        d.normalize();
+        const push = (min - dist) / 2;
+        a.pos.addScaledVector(d, -push);
+        b.pos.addScaledVector(d, push);
+        const rel = new THREE.Vector3().subVectors(b.vel, a.vel).dot(d);
+        if (rel < 0) {
+          a.vel.addScaledVector(d, rel*0.5);
+          b.vel.addScaledVector(d, -rel*0.5);
+        }
+      }
+    }
+  }
+}
+
+// ---------- game state machine ----------
+const game = {
+  mode: 'idle',          // idle | play | descend | closing | ascend | toChute | release | return
+  x: HOME.x, y: RAIL_Y, z: HOME.z,
+  joy: { x:0, y:0 },
+  fingerT: 1,
+  carried: null,
+  quality: 0,
+  timer: 0,
+  targetY: 0,
+  plays: 0, wins: 0,
+  idleT: 0,
+  awaitWin: false,
+};
+
+function startGrab() {
+  if (game.mode !== 'play' && game.mode !== 'idle') return;
+  game.mode = 'descend';
+  game.plays++;
+  document.getElementById('plays').textContent = game.plays;
+  // descend target: nearest prize top under the claw, else near floor
+  let best = null, bestD = 0.5;
+  for (const p of prizes) {
+    if (p.gone || p.held) continue;
+    const d = Math.hypot(p.pos.x-game.x, p.pos.z-game.z);
+    if (d < bestD) { bestD = d; best = p; }
+  }
+  const tipOffset = 0.72; // head center → finger tip
+  game.targetY = best ? p2headY(best) : FLOOR_Y + 0.16 + tipOffset;
+  setStatus('집게 내려가는 중…', true);
+  sendCtl({ t:'phase', v:'grab' });
+  function p2headY(p) { return p.pos.y + PRIZE_R*0.4 + tipOffset; }
+}
+
+function prizeInHole(p) {
+  p.gone = true;
+  p.mesh.visible = false;
+  game.wins++;
+  document.getElementById('wins').textContent = game.wins;
+  bigMsg('🎉 당첨!');
+  confetti();
+  sendCtl({ t:'result', win:true });
+  setStatus('🎁 당첨! 경품을 받아가세요!', true);
+  setTimeout(() => spawnPrizes(14), 4000);
+}
+
+function updateClaw(dt) {
+  const g = game;
+  switch (g.mode) {
+    case 'idle': {
+      g.idleT += dt;
+      g.x = Math.sin(g.idleT*0.4) * 1.2;
+      g.z = Math.cos(g.idleT*0.29) * 0.8;
+      g.fingerT = 0.6 + Math.sin(g.idleT*1.2)*0.35;
+      break;
+    }
+    case 'play': {
+      g.x = THREE.MathUtils.clamp(g.x + g.joy.x*CLAW_SPEED*dt, BOUNDS.minX, BOUNDS.maxX);
+      g.z = THREE.MathUtils.clamp(g.z + g.joy.y*CLAW_SPEED*dt, BOUNDS.minZ, BOUNDS.maxZ);
+      g.fingerT = 1;
+      break;
+    }
+    case 'descend': {
+      g.y -= 2.4*dt;
+      if (g.y <= g.targetY) { g.y = g.targetY; g.mode = 'closing'; g.timer = 0; }
+      break;
+    }
+    case 'closing': {
+      g.timer += dt;
+      g.fingerT = Math.max(0, 1 - g.timer/0.45);
+      if (g.timer >= 0.5) {
+        // try to catch nearest prize
+        let best = null, bestD = 0.42;
+        for (const p of prizes) {
+          if (p.gone || p.held) continue;
+          const d = Math.hypot(p.pos.x-g.x, p.pos.z-g.z);
+          if (d < bestD) { bestD = d; best = p; }
+        }
+        if (best) {
+          const q = THREE.MathUtils.clamp(1.05 - bestD*1.8, 0.15, 0.92);
+          if (Math.random() < q) {
+            best.held = true;
+            g.carried = best;
+            g.quality = q;
+          }
+        }
+        g.mode = 'ascend';
+        setStatus(g.carried ? '잡았다! 올라갑니다…' : '아쉽네요… 다시 도전!', true);
+      }
+      break;
+    }
+    case 'ascend': {
+      g.y += 2.2*dt;
+      slipCheck(dt);
+      if (g.y >= RAIL_Y) { g.y = RAIL_Y; g.mode = 'toChute'; }
+      break;
+    }
+    case 'toChute': {
+      const dx = HOLE.x - g.x, dz = HOLE.z - g.z;
+      const d = Math.hypot(dx, dz);
+      slipCheck(dt);
+      if (d < 0.05) { g.mode = 'release'; g.timer = 0; }
+      else {
+        const s = Math.min(1.7*dt, d);
+        g.x += dx/d*s; g.z += dz/d*s;
+      }
+      break;
+    }
+    case 'release': {
+      g.timer += dt;
+      g.fingerT = Math.min(1, g.timer/0.35);
+      if (g.carried && g.fingerT > 0.5) {
+        const p = g.carried;
+        p.held = false;
+        p.vel.set(0, -0.5, 0);
+        g.carried = null;
+      }
+      if (g.timer >= 0.9) { g.mode = 'return'; }
+      break;
+    }
+    case 'return': {
+      const dx = HOME.x - g.x, dz = HOME.z - g.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 0.05) {
+        g.mode = activeConn ? 'play' : 'idle';
+        if (g.mode === 'play') { setStatus('🎮 폰으로 조종 중', true); sendCtl({ t:'phase', v:'play' }); }
+        else setStatus('폰으로 QR을 스캔하면 게임이 시작됩니다', false);
+      } else {
+        const s = Math.min(1.7*dt, d);
+        g.x += dx/d*s; g.z += dz/d*s;
+      }
+      break;
+    }
+  }
+
+  function slipCheck(dt) {
+    if (!g.carried) return;
+    const slipRate = (1 - g.quality) * 0.22;
+    if (Math.random() < slipRate*dt) {
+      const p = g.carried;
+      p.held = false;
+      p.vel.set((Math.random()-.5)*1.2, 0, (Math.random()-.5)*1.2);
+      g.carried = null;
+      setStatus('앗, 놓쳤어요! 😭', true);
+      sendCtl({ t:'phase', v:'slip' });
+    }
+  }
+
+  // apply transforms
+  claw.position.set(g.x, 0, g.z);
+  trolley.position.y = RAIL_Y + 0.16;
+  head.position.y = g.y;
+  const cableLen = (RAIL_Y + 0.05) - g.y;
+  cable.scale.y = Math.max(cableLen, 0.01);
+  cable.position.y = g.y + cableLen/2;
+  setFingers(g.fingerT);
+  railBar.position.z = g.z;
+
+  // carried prize follows finger tip
+  if (g.carried) {
+    g.carried.pos.set(g.x, g.y - 0.62, g.z);
+    g.carried.vel.set(0,0,0);
+  }
+}
+
+// ---------- UI helpers ----------
+const statusEl = document.getElementById('status');
+const statusText = document.getElementById('statustext');
+function setStatus(msg, on) {
+  statusText.textContent = msg;
+  statusEl.classList.toggle('on', !!on);
+}
+function bigMsg(msg) {
+  const el = document.getElementById('bigmsg');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2600);
+}
+function confetti() {
+  const colors = ['#e10600','#ffd24a','#2e9cff','#2ee56b','#ff7ab8','#fff'];
+  for (let i=0;i<90;i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = Math.random()*100 + 'vw';
+    c.style.background = colors[Math.floor(Math.random()*colors.length)];
+    c.style.animationDuration = (1.8 + Math.random()*1.6) + 's';
+    c.style.animationDelay = (Math.random()*0.6) + 's';
+    c.style.transform = 'rotate(' + Math.random()*360 + 'deg)';
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 4200);
+  }
+}
+
+// ---------- networking (PeerJS) ----------
+let peer = null, activeConn = null;
+const waiting = [];
+function sendCtl(obj) {
+  if (activeConn && activeConn.open) { try { activeConn.send(obj); } catch(e){} }
+}
+function initPeer() {
+  const roomId = 'srclaw-' + Math.random().toString(36).slice(2, 8);
+  const url = new URL('controller.html', location.href);
+  url.searchParams.set('r', roomId);
+  document.getElementById('qr').innerHTML = '';
+  new QRCode(document.getElementById('qr'), { text:url.href, width:180, height:180, correctLevel:QRCode.CorrectLevel.M });
+  document.getElementById('roomtag').textContent = '연결 준비 중…';
+  peer = new Peer(roomId);
+  peer.on('open', id => {
+    document.getElementById('roomtag').textContent = 'ROOM ' + id.replace('srclaw-','').toUpperCase();
+  });
+  peer.on('connection', conn => {
+    conn.on('open', () => {
+      if (!activeConn) attachController(conn);
+      else { waiting.push(conn); conn.send({ t:'role', v:'busy' }); }
+    });
+    conn.on('close', () => dropController(conn));
+    conn.on('error', () => dropController(conn));
+  });
+  peer.on('error', err => {
+    console.warn('peer error', err.type);
+    if (err.type === 'unavailable-id' || err.type === 'network' || err.type === 'server-error') {
+      document.getElementById('roomtag').textContent = '연결 오류 — 재시도 중…';
+      setTimeout(() => { try{peer.destroy();}catch(e){} initPeer(); }, 3000);
+    }
+  });
+}
+function attachController(conn) {
+  activeConn = conn;
+  conn.send({ t:'role', v:'active' });
+  if (game.mode === 'idle') game.mode = 'play';
+  document.getElementById('qrcard').classList.add('mini');
+  setStatus('🎮 폰으로 조종 중', true);
+  conn.on('data', d => handleCtl(conn, d));
+}
+function dropController(conn) {
+  const wi = waiting.indexOf(conn);
+  if (wi >= 0) waiting.splice(wi, 1);
+  if (conn !== activeConn) return;
+  activeConn = null;
+  game.joy.x = game.joy.y = 0;
+  const next = waiting.shift();
+  if (next && next.open) attachController(next);
+  else {
+    document.getElementById('qrcard').classList.remove('mini');
+    if (game.mode === 'play') game.mode = 'idle';
+    setStatus('폰으로 QR을 스캔하면 게임이 시작됩니다', false);
+  }
+}
+function handleCtl(conn, d) {
+  if (conn !== activeConn || !d || typeof d !== 'object') return;
+  if (d.t === 'joy') {
+    game.joy.x = THREE.MathUtils.clamp(+d.x || 0, -1, 1);
+    game.joy.y = THREE.MathUtils.clamp(+d.y || 0, -1, 1);
+  } else if (d.t === 'grab') {
+    startGrab();
+  } else if (d.t === 'bye') {
+    conn.close();
+  }
+}
+initPeer();
+
+// ---------- keyboard fallback ----------
+const keys = {};
+addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (e.key === ' ') { e.preventDefault(); if (!activeConn) { if (game.mode==='idle') game.mode='play'; startGrab(); } }
+});
+addEventListener('keyup', e => { keys[e.key] = false; });
+function keyboardJoy() {
+  if (activeConn) return;
+  let x = 0, y = 0;
+  if (keys.ArrowLeft) x -= 1;
+  if (keys.ArrowRight) x += 1;
+  if (keys.ArrowUp) y -= 1;
+  if (keys.ArrowDown) y += 1;
+  if ((x || y) && game.mode === 'idle') { game.mode = 'play'; setStatus('⌨️ 키보드 조작 중', true); }
+  if (game.mode === 'play') { game.joy.x = x; game.joy.y = y; }
+}
+
+// ---------- main loop ----------
+let last = performance.now();
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = Math.min((now - last)/1000, 0.05);
+  last = now;
+  keyboardJoy();
+  updateClaw(dt);
+  physicsStep(dt);
+  // subtle camera sway
+  const t = now/1000;
+  camera.position.x = Math.sin(t*0.12)*0.5;
+  camera.lookAt(0, 1.5, 0);
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(loop);
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
