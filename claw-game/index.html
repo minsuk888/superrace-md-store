@@ -62,6 +62,13 @@
     animation:fall linear forwards; pointer-events:none; }
   @keyframes fall { to { transform:translateY(110vh) rotate(720deg); opacity:.9; } }
   #hint { right:26px; bottom:24px; font-size:11px; color:#667; text-align:right; line-height:1.7; }
+
+  #touchgrab { left:26px; bottom:26px; display:none; padding:18px 30px; border:none; border-radius:18px;
+    font-size:22px; font-weight:900; color:#fff; cursor:pointer;
+    background:linear-gradient(180deg, #ff9d1a, #e10600);
+    box-shadow:0 6px 0 #7a0300, 0 10px 22px rgba(225,6,0,.4); }
+  #touchgrab:active { transform:translateY(4px); box-shadow:0 2px 0 #7a0300; }
+  #touchgrab.show { display:block; }
 </style>
 </head>
 <body>
@@ -91,7 +98,8 @@
 
 <div class="overlay" id="status"><span class="dot"></span><span id="statustext">폰으로 QR을 스캔하면 게임이 시작됩니다 (최대 4명 동시)</span></div>
 <div class="overlay" id="bigmsg"></div>
-<div class="overlay" id="hint">현장 테스트: 방향키 이동 / 스페이스 잡기</div>
+<div class="overlay" id="hint">현장 테스트: 방향키 이동 / 스페이스 잡기<br>터치 기기: 화면 드래그로 이동</div>
+<button class="overlay" id="touchgrab">🕹️ 잡기!</button>
 
 <script src="lib/three.min.js"></script>
 <script src="lib/qrcode.min.js"></script>
@@ -760,6 +768,7 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => { keys[e.key] = false; });
 function keyboardJoy() {
+  if (drag.active) return;   // touch drag is steering the local claw
   const p = players.get('local');
   if (!p) return;
   let x = 0, y = 0;
@@ -769,6 +778,41 @@ function keyboardJoy() {
   if (keys.ArrowDown) y += 1;
   p.joy.x = x; p.joy.y = y;
 }
+
+// ---------- touch fallback (single-device preview / kiosk testing) ----------
+// drag anywhere on the 3D view to steer a local test claw, button to grab
+const touchGrabBtn = document.getElementById('touchgrab');
+const drag = { active:false, pid:null, sx:0, sy:0 };
+renderer.domElement.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse') return;
+  if (!players.has('local')) {
+    if (freeSlot() < 0) return;
+    createPlayer('local', null, '체험모드');
+  }
+  touchGrabBtn.classList.add('show');
+  drag.active = true; drag.pid = e.pointerId;
+  drag.sx = e.clientX; drag.sy = e.clientY;
+  try { renderer.domElement.setPointerCapture(e.pointerId); } catch(err) {}
+});
+renderer.domElement.addEventListener('pointermove', e => {
+  if (!drag.active || e.pointerId !== drag.pid) return;
+  const p = players.get('local');
+  if (!p) return;
+  p.joy.x = THREE.MathUtils.clamp((e.clientX - drag.sx) / 70, -1, 1);
+  p.joy.y = THREE.MathUtils.clamp((e.clientY - drag.sy) / 70, -1, 1);
+});
+function endDrag(e) {
+  if (e.pointerId !== drag.pid) return;
+  drag.active = false;
+  const p = players.get('local');
+  if (p) { p.joy.x = 0; p.joy.y = 0; }
+}
+renderer.domElement.addEventListener('pointerup', endDrag);
+renderer.domElement.addEventListener('pointercancel', endDrag);
+touchGrabBtn.addEventListener('click', () => {
+  const p = players.get('local');
+  if (p) startGrab(p);
+});
 
 // ---------- attract claw (shown when nobody is playing) ----------
 const attract = { rig: createClawRig(0x777788, ''), t: 0 };
