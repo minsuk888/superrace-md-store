@@ -103,7 +103,7 @@
 
 <script src="lib/three.min.js"></script>
 <script src="lib/qrcode.min.js"></script>
-<script src="lib/peerjs.min.js"></script>
+<script src="lib/mqtt.min.js"></script>
 <script>
 'use strict';
 // ============================================================
@@ -698,69 +698,125 @@ function confetti() {
   }
 }
 
-// ---------- networking ----------
-// STUN + free TURN relays: TURN is needed when phone (LTE) and screen (WiFi)
-// are on different networks and P2P NAT traversal fails
-const PEER_OPTS = { debug: 1, config: { iceServers: [
-  { urls:'stun:stun.l.google.com:19302' },
-  { urls:'stun:stun1.l.google.com:19302' },
-  { urls:'turn:openrelay.metered.ca:80',  username:'openrelayproject', credential:'openrelayproject' },
-  { urls:'turn:openrelay.metered.ca:443', username:'openrelayproject', credential:'openrelayproject' },
-  { urls:'turn:openrelay.metered.ca:443?transport=tcp', username:'openrelayproject', credential:'openrelayproject' },
-] } };
-let peer = null;
-function sendTo(conn, obj) {
-  if (conn && conn.open) { try { conn.send(obj); } catch(e){} }
-}
-// the room id is FIXED for the lifetime of this page: the QR stays valid and
-// phones that lost us can silently re-find the same room when we re-register.
-// (regenerating the id on a network blip was orphaning already-scanned QRs)
-const ROOM_ID = 'srclaw-' + Math.random().toString(36).slice(2, 8);
+// ---------- networking (MQTT over WebSocket relay) ----------
+// No WebRTC/P2P at all: every message is relayed through a public MQTT
+// broker over wss. Works across any network combo (LTE phone + WiFi
+// screen) because it's just an outbound websocket on both ends.
+// ?b=<url> overrides the broker list (also propagated into the QR).
+const DEFAULT_BROKERS = [
+  'wss://broker.emqx.io:8084/mqtt',
+  'wss://broker.hivemq.com:8884/mqtt',
+  'wss://test.mosquitto.org:8081',
+];
+const brokerOverride = new URLSearchParams(location.search).get('b');
+const BROKERS = brokerOverride ? [brokerOverride] : DEFAULT_BROKERS;
+
+const ROOM_ID = 'sr' + Math.random().toString(36).slice(2, 8);  // fixed for page lifetime
+const TOPIC = {
+  c2s: `srclaw/${ROOM_ID}/c2s/`,        // + clientId : controller -> screen
+  s2c: `srclaw/${ROOM_ID}/s2c/`,        // + clientId : screen -> controller
+  presence: `srclaw/${ROOM_ID}/screen`, // retained heartbeat so phones see us instantly
+};
+const BOOT_ID = Math.random().toString(36).slice(2, 8);  // changes when screen reloads
+
 (function renderQR() {
   const url = new URL('controller.html', location.href);
   url.searchParams.set('r', ROOM_ID);
+  if (brokerOverride) url.searchParams.set('b', brokerOverride);
   new QRCode(document.getElementById('qr'), { text:url.href, width:168, height:168, correctLevel:QRCode.CorrectLevel.M });
   document.getElementById('roomtag').textContent = '연결 준비 중…';
 })();
-let peerRetryTimer = null;
-function reinitPeer(delay) {
-  if (peerRetryTimer) return;
-  peerRetryTimer = setTimeout(() => {
-    peerRetryTimer = null;
-    try { peer && peer.destroy(); } catch(e){}
-    initPeer();
-  }, delay);
+
+const roomTagEl = document.getElementById('roomtag');
+const ROOM_LABEL = 'ROOM ' + ROOM_ID.replace(/^sr/, '').toUpperCase();
+let mq = null, brokerIdx = 0, presenceTimer = null;
+const conns = new Map();  // clientId -> conn-like object (used as the key in players/waiting)
+
+function connectBroker() {
+  const url = BROKERS[brokerIdx % BROKERS.length];
+  roomTagEl.textContent = '중계 서버 연결 중…';
+  const client = mqtt.connect(url, {
+    keepalive: 20, clean: true, reconnectPeriod: 0, connectTimeout: 7000,
+  });
+  let wasUp = false;
+  client.on('connect', () => {
+    wasUp = true;
+    mq = client;
+    roomTagEl.textContent = '서버 연결됨 ✓ · ' + ROOM_LABEL;
+    client.subscribe(TOPIC.c2s + '+', { qos: 0 });
+    publishPresence();
+    clearInterval(presenceTimer);
+    presenceTimer = setInterval(publishPresence, 5000);
+  });
+  client.on('message', onMqttMessage);
+  client.on('error', () => { try { client.end(true); } catch(e){} });
+  client.on('close', () => {
+    clearInterval(presenceTimer);
+    if (mq === client) mq = null;
+    if (!wasUp) brokerIdx++;      // never connected: try the next broker
+    roomTagEl.textContent = '서버 재접속 중… · ' + ROOM_LABEL;
+    setTimeout(connectBroker, 2000);
+  });
 }
-function initPeer() {
-  peer = new Peer(ROOM_ID, PEER_OPTS);
-  peer.on('open', id => {
-    document.getElementById('roomtag').textContent = '서버 연결됨 ✓ · ROOM ' + id.replace('srclaw-','').toUpperCase();
-  });
-  peer.on('disconnected', () => {
-    document.getElementById('roomtag').textContent = '서버 재접속 중… · ROOM ' + ROOM_ID.replace('srclaw-','').toUpperCase();
-    try { peer.reconnect(); } catch(e){}
-  });
-  peer.on('connection', conn => {
-    conn.on('data', d => handleData(conn, d));
-    conn.on('close', () => handleLeave(conn));
-    conn.on('error', () => handleLeave(conn));
-  });
-  peer.on('error', err => {
-    console.warn('peer error', err.type);
-    if (err.type === 'unavailable-id') {
-      // our previous registration is still expiring server-side — retry the SAME id
-      document.getElementById('roomtag').textContent = '방 재등록 중…';
-      reinitPeer(3000);
-    } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed') {
-      document.getElementById('roomtag').textContent = '서버 연결 오류 — 재시도 중…';
-      reinitPeer(3000);
-    }
-  });
+function publishPresence() {
+  if (mq) mq.publish(TOPIC.presence, JSON.stringify({ on:1, boot:BOOT_ID, ts:Date.now() }), { retain:true, qos:0 });
+}
+addEventListener('beforeunload', () => {
+  try { mq && mq.publish(TOPIC.presence, '', { retain:true }); } catch(e){}  // clear retained presence
+});
+
+function getConn(cid) {
+  let conn = conns.get(cid);
+  if (!conn) {
+    conn = {
+      id: cid, open: true, lastSeen: performance.now(),
+      send(obj) { if (mq) mq.publish(TOPIC.s2c + cid, JSON.stringify(obj), { qos: obj.t === 'joy' ? 0 : 1 }); },
+    };
+    conns.set(cid, conn);
+  }
+  return conn;
+}
+function dropConn(cid) {
+  const conn = conns.get(cid);
+  if (!conn) return;
+  conn.open = false;
+  conns.delete(cid);
+  handleLeave(conn);
+}
+function onMqttMessage(topic, payload) {
+  if (!topic.startsWith(TOPIC.c2s)) return;
+  const cid = topic.slice(TOPIC.c2s.length);
+  if (!cid || cid.includes('/')) return;
+  let d;
+  try { d = JSON.parse(payload.toString()); } catch(e) { return; }
+  if (!d || typeof d !== 'object') return;
+  const conn = getConn(cid);
+  conn.lastSeen = performance.now();
+  if (d.t === 'hb') {
+    // heartbeat from a phone we don't know (e.g. we restarted) -> ask it to rejoin
+    if (!players.has(conn) && !waiting.some(w => w.conn === conn)) sendTo(conn, { t:'rejoin' });
+    return;
+  }
+  if (d.t === 'bye') { dropConn(cid); return; }
+  handleData(conn, d);
+}
+// drop controllers that stopped heartbeating (phone locked, app killed, ...)
+setInterval(() => {
+  const now = performance.now();
+  for (const [cid, c] of conns) if (now - c.lastSeen > 16000) dropConn(cid);
+}, 5000);
+
+function sendTo(conn, obj) {
+  if (conn && conn.open) { try { conn.send(obj); } catch(e){} }
 }
 function handleData(conn, d) {
   if (!d || typeof d !== 'object') return;
   if (d.t === 'hello') {
-    if (players.has(conn) || waiting.some(w => w.conn === conn)) return;
+    // already in? re-send the role (phone re-hellos after a broker blip)
+    const existing = players.get(conn);
+    if (existing) { sendTo(conn, { t:'role', v:'active', color:PLAYER_COLORS_CSS[existing.slot], name:existing.name }); return; }
+    const wpos = waiting.findIndex(w => w.conn === conn);
+    if (wpos >= 0) { sendTo(conn, { t:'role', v:'busy', pos:wpos+1 }); return; }
     const name = String(d.name || '플레이어').slice(0, 8).trim() || '플레이어';
     const player = createPlayer(conn, conn, name);
     if (player) sendTo(conn, { t:'role', v:'active', color:PLAYER_COLORS_CSS[player.slot], name });
@@ -774,9 +830,6 @@ function handleData(conn, d) {
     p.joy.y = THREE.MathUtils.clamp(+d.y || 0, -1, 1);
   } else if (d.t === 'grab') {
     startGrab(p);
-  } else if (d.t === 'bye') {
-    conn.close();
-    handleLeave(conn);
   }
 }
 function handleLeave(conn) {
@@ -784,7 +837,7 @@ function handleLeave(conn) {
   if (wi >= 0) { waiting.splice(wi, 1); promoteWaiting(); }
   removePlayer(conn);
 }
-initPeer();
+connectBroker();
 
 // ---------- keyboard test player ----------
 const keys = {};

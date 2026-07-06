@@ -140,7 +140,7 @@
 </div>
 <button id="prizebadge">🎁 내 경품 보기</button>
 
-<script src="lib/peerjs.min.js"></script>
+<script src="lib/mqtt.min.js"></script>
 <script>
 'use strict';
 const roomId = new URLSearchParams(location.search).get('r');
@@ -206,75 +206,107 @@ document.getElementById('tk-close').addEventListener('click', () => {
 });
 prizeBadge.addEventListener('click', () => showTicket(myPrizes.length - 1));
 
-// ---------- networking ----------
-// STUN + free TURN relays: TURN is needed when the phone (LTE) and the screen
-// (WiFi) are on different networks and P2P NAT traversal fails
-const PEER_OPTS = { debug: 1, config: { iceServers: [
-  { urls:'stun:stun.l.google.com:19302' },
-  { urls:'stun:stun1.l.google.com:19302' },
-  { urls:'turn:openrelay.metered.ca:80',  username:'openrelayproject', credential:'openrelayproject' },
-  { urls:'turn:openrelay.metered.ca:443', username:'openrelayproject', credential:'openrelayproject' },
-  { urls:'turn:openrelay.metered.ca:443?transport=tcp', username:'openrelayproject', credential:'openrelayproject' },
-] } };
+// ---------- networking (MQTT over WebSocket relay) ----------
+// All traffic is relayed through a public MQTT broker over wss — no WebRTC,
+// so LTE phones connect as reliably as the screen's WiFi. ?b= overrides the
+// broker (the screen puts it in the QR when it uses an override itself).
+const DEFAULT_BROKERS = [
+  'wss://broker.emqx.io:8084/mqtt',
+  'wss://broker.hivemq.com:8884/mqtt',
+  'wss://test.mosquitto.org:8081',
+];
+const brokerOverride = new URLSearchParams(location.search).get('b');
+const BROKERS = brokerOverride ? [brokerOverride] : DEFAULT_BROKERS;
+const MY_ID = 'c' + Math.random().toString(36).slice(2, 10);
+const TOPIC = {
+  pub: `srclaw/${roomId}/c2s/${MY_ID}`,
+  sub: `srclaw/${roomId}/s2c/${MY_ID}`,
+  presence: `srclaw/${roomId}/screen`,
+};
 const netDbg = document.getElementById('netdbg');
-let peer = null, conn = null, role = null, closing = false, retryTimer = null, openTimer = null, notFound = 0;
-function scheduleRetry(msg) {
-  if (closing || retryTimer) return;
-  role = null;
-  grabBtn.disabled = true;
-  if (msg) setState(msg, 'bad');
-  retryTimer = setTimeout(() => { retryTimer = null; connect(); }, 2500);
+let mq = null, brokerIdx = 0, role = null, closing = false;
+let joined = false, screenBoot = null, lastScreenSign = 0, hbTimer = null, findTimer = null;
+
+function send(obj, force) {
+  if (!mq || (!force && role !== 'active')) return;
+  try { mq.publish(TOPIC.pub, JSON.stringify(obj), { qos: obj.t === 'joy' || obj.t === 'hb' ? 0 : 1 }); } catch(e){}
+}
+function sendHello() {
+  joined = false;
+  send({ t:'hello', name: myName }, true);
 }
 function connect() {
-  clearTimeout(openTimer);
-  setState('신호 서버 연결 중…', null);
+  const url = BROKERS[brokerIdx % BROKERS.length];
+  setState('중계 서버 연결 중…', null);
   netDbg.textContent = '서버 접속 중';
-  try { peer && peer.destroy(); } catch(e){}
-  peer = new Peer(PEER_OPTS);
-  peer.on('open', () => {
-    setState('게임 화면 찾는 중…', null);
-    netDbg.textContent = '서버 ✓ · P2P 협상 중';
-    conn = peer.connect(roomId, { reliable: true });
-    // if the P2P channel doesn't open in 12s, retry (NAT traversal may have failed)
-    openTimer = setTimeout(() => {
-      if (!conn || !conn.open) {
-        setState('연결이 오래 걸려요 — 재시도 중… (화면과 같은 와이파이면 더 잘 붙어요)', 'warn');
-        try { conn && conn.close(); } catch(e){}
-        scheduleRetry(null);
-      }
-    }, 12000);
-    conn.on('open', () => {
-      clearTimeout(openTimer);
-      notFound = 0;
-      netDbg.textContent = '서버 ✓ · P2P ✓';
-      setState('연결됨 — 입장 중…', null);
-      vibrate(30);
-      conn.send({ t:'hello', name: myName });
-    });
-    conn.on('data', onData);
-    conn.on('close', () => scheduleRetry('연결이 끊겼어요 — 다시 연결 중…'));
-    conn.on('error', () => scheduleRetry('연결이 끊겼어요 — 다시 연결 중…'));
+  const client = mqtt.connect(url, {
+    keepalive: 20, clean: true, reconnectPeriod: 0, connectTimeout: 7000,
   });
-  peer.on('disconnected', () => { try { peer.reconnect(); } catch(e){} });
-  peer.on('error', err => {
-    if (err.type === 'peer-unavailable') {
-      clearTimeout(openTimer);
-      notFound++;
-      netDbg.textContent = '방 찾는 중 (' + notFound + '번째 시도)';
-      // the screen may be re-registering after a network blip — keep retrying
-      if (notFound < 6) setState('게임 화면 찾는 중… 자동 재시도 중이에요 (' + notFound + '/5)', 'warn');
-      else setState('화면을 계속 못 찾고 있어요 — 게임 화면이 켜져 있는지 확인하고, 화면을 새로고침했다면 QR을 다시 스캔해 주세요', 'bad');
-      scheduleRetry(null);
-    } else {
-      netDbg.textContent = '서버 오류: ' + err.type;
-      scheduleRetry('신호 서버 접속 실패 — 재시도 중… (인터넷 연결을 확인해 주세요)');
+  let wasUp = false;
+  client.on('connect', () => {
+    wasUp = true;
+    mq = client;
+    netDbg.textContent = '서버 ✓';
+    setState('게임 화면 찾는 중…', null);
+    vibrate(30);
+    client.subscribe([TOPIC.sub, TOPIC.presence], { qos: 1 });
+    sendHello();
+    clearInterval(hbTimer);
+    // until the screen confirms our role, keep re-sending hello (covers the
+    // race where we reconnect before the screen has re-subscribed)
+    hbTimer = setInterval(() => { if (joined) send({ t:'hb' }, true); else sendHello(); }, 5000);
+    // if the screen never answers, tell the user what to check
+    clearTimeout(findTimer);
+    findTimer = setTimeout(() => {
+      if (!joined) setState('게임 화면의 응답이 없어요 — 화면이 켜져 있고 "서버 연결됨 ✓"인지 확인해 주세요. 화면을 새로고침했다면 QR을 다시 스캔하세요.', 'warn');
+    }, 10000);
+  });
+  client.on('message', (topic, payload, packet) => {
+    if (topic === TOPIC.presence) {
+      if (!payload || !payload.length) return;          // cleared retained message
+      let d; try { d = JSON.parse(payload.toString()); } catch(e) { return; }
+      if (!packet.retain) lastScreenSign = Date.now();  // live heartbeat only
+      if (screenBoot && d.boot && d.boot !== screenBoot) sendHello();  // screen restarted
+      if (d.boot) screenBoot = d.boot;
+      return;
     }
+    if (topic !== TOPIC.sub) return;
+    let d; try { d = JSON.parse(payload.toString()); } catch(e) { return; }
+    lastScreenSign = Date.now();
+    onData(d);
+  });
+  client.on('error', () => { try { client.end(true); } catch(e){} });
+  client.on('close', () => {
+    if (closing) return;
+    clearInterval(hbTimer);
+    clearTimeout(findTimer);
+    if (mq === client) mq = null;
+    if (!wasUp) brokerIdx++;      // never connected: try the next broker
+    role = null;
+    grabBtn.disabled = true;
+    setState('연결이 끊겼어요 — 다시 연결 중…', 'bad');
+    netDbg.textContent = '재접속 중';
+    setTimeout(connect, 2000);
   });
 }
+// if the screen goes silent for 20s while we're joined, warn (it heartbeats every 5s)
+setInterval(() => {
+  if (!joined || !lastScreenSign) return;
+  if (Date.now() - lastScreenSign > 20000) {
+    joined = false;
+    role = null;
+    grabBtn.disabled = true;
+    setState('게임 화면과 연결이 끊긴 것 같아요 — 화면 상태를 확인해 주세요', 'bad');
+  }
+}, 5000);
 function onData(d) {
   if (!d || typeof d !== 'object') return;
+  if (d.t === 'rejoin') { sendHello(); return; }   // screen doesn't know us -> re-enter
   if (d.t === 'role') {
     role = d.v;
+    joined = true;
+    clearTimeout(findTimer);
+    netDbg.textContent = '서버 ✓ · 화면 ✓';
     if (role === 'active') {
       setState(`🎮 ${myName}님, 집게를 조종하세요!`, 'good');
       grabBtn.disabled = false;
@@ -300,7 +332,6 @@ function onData(d) {
     prizeBadge.classList.add('show');
   }
 }
-function send(obj) { if (conn && conn.open && role === 'active') try { conn.send(obj); } catch(e){} }
 
 // ---------- joystick ----------
 const joy = { x:0, y:0, active:false, pid:null };
@@ -347,7 +378,7 @@ grabBtn.addEventListener('pointerup', () => grabBtn.classList.remove('pressed'))
 
 addEventListener('beforeunload', () => {
   closing = true;
-  try { conn && conn.open && conn.send({ t:'bye' }); } catch(e){}
+  try { send({ t:'bye' }, true); } catch(e){}
 });
 </script>
 </body>
