@@ -112,7 +112,7 @@
     </div>
   </div>
   <button id="grabbtn" disabled>🕹️ 잡기!</button>
-  <footer>SUPER RACE MD STORE</footer>
+  <footer>SUPER RACE MD STORE · <span id="netdbg">대기</span></footer>
 </div>
 
 <!-- name entry -->
@@ -207,33 +207,65 @@ document.getElementById('tk-close').addEventListener('click', () => {
 prizeBadge.addEventListener('click', () => showTicket(myPrizes.length - 1));
 
 // ---------- networking ----------
-let peer = null, conn = null, role = null, closing = false;
+// STUN + free TURN relays: TURN is needed when the phone (LTE) and the screen
+// (WiFi) are on different networks and P2P NAT traversal fails
+const PEER_OPTS = { debug: 1, config: { iceServers: [
+  { urls:'stun:stun.l.google.com:19302' },
+  { urls:'stun:stun1.l.google.com:19302' },
+  { urls:'turn:openrelay.metered.ca:80',  username:'openrelayproject', credential:'openrelayproject' },
+  { urls:'turn:openrelay.metered.ca:443', username:'openrelayproject', credential:'openrelayproject' },
+  { urls:'turn:openrelay.metered.ca:443?transport=tcp', username:'openrelayproject', credential:'openrelayproject' },
+] } };
+const netDbg = document.getElementById('netdbg');
+let peer = null, conn = null, role = null, closing = false, retryTimer = null, openTimer = null;
+function scheduleRetry(msg) {
+  if (closing || retryTimer) return;
+  role = null;
+  grabBtn.disabled = true;
+  if (msg) setState(msg, 'bad');
+  retryTimer = setTimeout(() => { retryTimer = null; connect(); }, 2500);
+}
 function connect() {
-  setState('연결 중…', null);
+  clearTimeout(openTimer);
+  setState('신호 서버 연결 중…', null);
+  netDbg.textContent = '서버 접속 중';
   try { peer && peer.destroy(); } catch(e){}
-  peer = new Peer();
+  peer = new Peer(PEER_OPTS);
   peer.on('open', () => {
+    setState('게임 화면 찾는 중…', null);
+    netDbg.textContent = '서버 ✓ · P2P 협상 중';
     conn = peer.connect(roomId, { reliable: true });
+    // if the P2P channel doesn't open in 12s, retry (NAT traversal may have failed)
+    openTimer = setTimeout(() => {
+      if (!conn || !conn.open) {
+        setState('연결이 오래 걸려요 — 재시도 중… (화면과 같은 와이파이면 더 잘 붙어요)', 'warn');
+        try { conn && conn.close(); } catch(e){}
+        scheduleRetry(null);
+      }
+    }, 12000);
     conn.on('open', () => {
+      clearTimeout(openTimer);
+      netDbg.textContent = '서버 ✓ · P2P ✓';
       setState('연결됨 — 입장 중…', null);
       vibrate(30);
       conn.send({ t:'hello', name: myName });
     });
     conn.on('data', onData);
-    conn.on('close', onLost);
-    conn.on('error', onLost);
+    conn.on('close', () => scheduleRetry('연결이 끊겼어요 — 다시 연결 중…'));
+    conn.on('error', () => scheduleRetry('연결이 끊겼어요 — 다시 연결 중…'));
   });
+  peer.on('disconnected', () => { try { peer.reconnect(); } catch(e){} });
   peer.on('error', err => {
-    if (err.type === 'peer-unavailable') setState('게임 화면을 찾을 수 없어요. QR을 다시 스캔해 주세요.', 'bad');
-    else onLost();
+    if (err.type === 'peer-unavailable') {
+      clearTimeout(openTimer);
+      netDbg.textContent = '방을 찾지 못함';
+      setState('게임 화면을 찾을 수 없어요 — 화면의 QR을 새로 스캔해 주세요 (화면을 새로고침했다면 방 코드가 바뀝니다)', 'bad');
+      scheduleRetry(null);
+    } else {
+      netDbg.textContent = '서버 오류: ' + err.type;
+      scheduleRetry('신호 서버 접속 실패 — 재시도 중… (인터넷 연결을 확인해 주세요)');
+    }
   });
-}
-function onLost() {
-  if (closing) return;
-  role = null;
-  grabBtn.disabled = true;
-  setState('연결이 끊겼어요 — 다시 연결 중…', 'bad');
-  setTimeout(connect, 2500);
 }
 function onData(d) {
   if (!d || typeof d !== 'object') return;

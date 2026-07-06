@@ -699,6 +699,15 @@ function confetti() {
 }
 
 // ---------- networking ----------
+// STUN + free TURN relays: TURN is needed when phone (LTE) and screen (WiFi)
+// are on different networks and P2P NAT traversal fails
+const PEER_OPTS = { debug: 1, config: { iceServers: [
+  { urls:'stun:stun.l.google.com:19302' },
+  { urls:'stun:stun1.l.google.com:19302' },
+  { urls:'turn:openrelay.metered.ca:80',  username:'openrelayproject', credential:'openrelayproject' },
+  { urls:'turn:openrelay.metered.ca:443', username:'openrelayproject', credential:'openrelayproject' },
+  { urls:'turn:openrelay.metered.ca:443?transport=tcp', username:'openrelayproject', credential:'openrelayproject' },
+] } };
 let peer = null;
 function sendTo(conn, obj) {
   if (conn && conn.open) { try { conn.send(obj); } catch(e){} }
@@ -710,9 +719,13 @@ function initPeer() {
   document.getElementById('qr').innerHTML = '';
   new QRCode(document.getElementById('qr'), { text:url.href, width:168, height:168, correctLevel:QRCode.CorrectLevel.M });
   document.getElementById('roomtag').textContent = '연결 준비 중…';
-  peer = new Peer(roomId);
+  peer = new Peer(roomId, PEER_OPTS);
   peer.on('open', id => {
-    document.getElementById('roomtag').textContent = 'ROOM ' + id.replace('srclaw-','').toUpperCase();
+    document.getElementById('roomtag').textContent = '서버 연결됨 ✓ · ROOM ' + id.replace('srclaw-','').toUpperCase();
+  });
+  peer.on('disconnected', () => {
+    document.getElementById('roomtag').textContent = '서버 연결 끊김 — 재접속 중…';
+    try { peer.reconnect(); } catch(e){}
   });
   peer.on('connection', conn => {
     conn.on('data', d => handleData(conn, d));
