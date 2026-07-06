@@ -712,19 +712,32 @@ let peer = null;
 function sendTo(conn, obj) {
   if (conn && conn.open) { try { conn.send(obj); } catch(e){} }
 }
-function initPeer() {
-  const roomId = 'srclaw-' + Math.random().toString(36).slice(2, 8);
+// the room id is FIXED for the lifetime of this page: the QR stays valid and
+// phones that lost us can silently re-find the same room when we re-register.
+// (regenerating the id on a network blip was orphaning already-scanned QRs)
+const ROOM_ID = 'srclaw-' + Math.random().toString(36).slice(2, 8);
+(function renderQR() {
   const url = new URL('controller.html', location.href);
-  url.searchParams.set('r', roomId);
-  document.getElementById('qr').innerHTML = '';
+  url.searchParams.set('r', ROOM_ID);
   new QRCode(document.getElementById('qr'), { text:url.href, width:168, height:168, correctLevel:QRCode.CorrectLevel.M });
   document.getElementById('roomtag').textContent = '연결 준비 중…';
-  peer = new Peer(roomId, PEER_OPTS);
+})();
+let peerRetryTimer = null;
+function reinitPeer(delay) {
+  if (peerRetryTimer) return;
+  peerRetryTimer = setTimeout(() => {
+    peerRetryTimer = null;
+    try { peer && peer.destroy(); } catch(e){}
+    initPeer();
+  }, delay);
+}
+function initPeer() {
+  peer = new Peer(ROOM_ID, PEER_OPTS);
   peer.on('open', id => {
     document.getElementById('roomtag').textContent = '서버 연결됨 ✓ · ROOM ' + id.replace('srclaw-','').toUpperCase();
   });
   peer.on('disconnected', () => {
-    document.getElementById('roomtag').textContent = '서버 연결 끊김 — 재접속 중…';
+    document.getElementById('roomtag').textContent = '서버 재접속 중… · ROOM ' + ROOM_ID.replace('srclaw-','').toUpperCase();
     try { peer.reconnect(); } catch(e){}
   });
   peer.on('connection', conn => {
@@ -734,9 +747,13 @@ function initPeer() {
   });
   peer.on('error', err => {
     console.warn('peer error', err.type);
-    if (err.type === 'unavailable-id' || err.type === 'network' || err.type === 'server-error') {
-      document.getElementById('roomtag').textContent = '연결 오류 — 재시도 중…';
-      setTimeout(() => { try{peer.destroy();}catch(e){} initPeer(); }, 3000);
+    if (err.type === 'unavailable-id') {
+      // our previous registration is still expiring server-side — retry the SAME id
+      document.getElementById('roomtag').textContent = '방 재등록 중…';
+      reinitPeer(3000);
+    } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed') {
+      document.getElementById('roomtag').textContent = '서버 연결 오류 — 재시도 중…';
+      reinitPeer(3000);
     }
   });
 }
