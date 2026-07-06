@@ -113,14 +113,14 @@
 
 // ---------- constants ----------
 const MAX_PLAYERS = 4;
-const BOUNDS = { minX:-2.75, maxX:2.75, minZ:-1.30, maxZ:1.30 };
+const BOUNDS = { minX:-3.55, maxX:3.55, minZ:-1.30, maxZ:1.30 };
 const RAIL_Y = 3.35;
 const FLOOR_Y = 0;
-const HOLE = { x:2.18, z:0.86, r:0.46 };
-const HOME_X = [-1.0, 1.0, -2.1, 0.3];   // per-slot home position
+const HOLE = { x:2.95, z:0.86, r:0.46 };
+const HOME_X = [-1.3, 1.3, -2.7, 0.3];   // per-slot home position
 const HOME_Z = 0.2;
 const PRIZE_R = 0.27;
-const PRIZE_COUNT = 40;
+const PRIZE_COUNT = 52;
 const CLAW_SPEED = 2.0;
 const GRAVITY = 9.8;
 
@@ -157,9 +157,9 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0a0a12);
 scene.fog = new THREE.Fog(0x0a0a12, 15, 30);
 
-const camera = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, 0.1, 60);
-camera.position.set(0, 2.45, 10.2);
-camera.lookAt(0, 2.2, 0);
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 60);
+camera.position.set(0, 2.55, 7.7);
+camera.lookAt(0, 2.3, 0);
 
 // environment map (drawn on a canvas): dark room + ceiling LED strips + pink
 // floor glow — gives the chrome claw and glossy cabinet something to reflect
@@ -186,7 +186,7 @@ const key = new THREE.DirectionalLight(0xffffff, 0.75);
 key.position.set(3, 8, 6);
 key.castShadow = true;
 key.shadow.mapSize.set(2048, 2048);
-key.shadow.camera.left = -7; key.shadow.camera.right = 7;
+key.shadow.camera.left = -9; key.shadow.camera.right = 9;
 key.shadow.camera.top = 7;   key.shadow.camera.bottom = -7;
 scene.add(key);
 // interior: cool-white ceiling light + pink floor glow (like the reference)
@@ -230,7 +230,7 @@ const ledWhiteMat  = new THREE.MeshStandardMaterial({ color:0xffffff, emissive:0
 const glassMat = new THREE.MeshStandardMaterial({ color:0xffffff, transparent:true, opacity:0.09, roughness:0.05, metalness:0.9, side:THREE.DoubleSide });
 const floorPink = new THREE.MeshStandardMaterial({ color:0xffb5e8, emissive:0xff3fd1, emissiveIntensity:0.22, roughness:0.16, metalness:0.2 });
 
-const CAB_W = 6.2, CAB_D = 3.2, H = 3.9;
+const CAB_W = 8.0, CAB_D = 3.2, H = 3.9;
 
 // body
 const base = new THREE.Mesh(new THREE.BoxGeometry(CAB_W+0.5, 1.5, CAB_D+0.5), whiteGloss);
@@ -258,7 +258,7 @@ machine.add(holeMesh);
 const TUBE_H = 1.05, TUBE_R = HOLE.r + 0.05;
 const tube = new THREE.Mesh(
   new THREE.CylinderGeometry(TUBE_R, TUBE_R, TUBE_H, 36, 1, true),
-  glassMat
+  new THREE.MeshStandardMaterial({ color:0xffffff, transparent:true, opacity:0.2, roughness:0.05, metalness:0.85, side:THREE.DoubleSide })
 );
 tube.position.set(HOLE.x, TUBE_H/2, HOLE.z);
 machine.add(tube);
@@ -300,10 +300,10 @@ topLid.position.y = H + 0.21;
 topLid.castShadow = true;
 machine.add(topLid);
 const marqueeBox = new THREE.Mesh(new THREE.BoxGeometry(CAB_W+0.5, 0.85, CAB_D+0.46), silverMat);
-marqueeBox.position.y = H + 0.84;
+marqueeBox.position.y = H + 0.68;
 machine.add(marqueeBox);
 const marquee = new THREE.Mesh(new THREE.PlaneGeometry(CAB_W-0.15, 0.62), pinkPanelMat);
-marquee.position.set(0, H + 0.84, CAB_D/2 + 0.26);
+marquee.position.set(0, H + 0.68, CAB_D/2 + 0.26);
 machine.add(marquee);
 
 // ceiling & back panels keep the interior bright (reference has a lit box)
@@ -317,9 +317,9 @@ backPanel.position.set(0, H/2, -CAB_D/2 + 0.02);
 machine.add(backPanel);
 
 // interior ceiling LED strips (two rows, cool white)
-for (let i=0;i<4;i++) for (let j=0;j<2;j++) {
+for (let i=0;i<5;i++) for (let j=0;j<2;j++) {
   const led = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.03, 0.14), ledWhiteMat);
-  led.position.set(-2.3 + i*1.55, H - 0.05, j===0 ? -0.85 : 0.85);
+  led.position.set(-3.1 + i*1.55, H - 0.05, j===0 ? -0.85 : 0.85);
   machine.add(led);
 }
 
@@ -337,21 +337,21 @@ deck.add(deckTop);
 const DECK_Y = 0.005, DECK_Z = CAB_D/2 + 0.82;
 // joystick
 const joyBase = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.2, 0.05, 20), darkMat);
-joyBase.position.set(-1.15, DECK_Y+0.02, DECK_Z);
+joyBase.position.set(-1.4, DECK_Y+0.02, DECK_Z);
 deck.add(joyBase);
 const joyStem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.24, 10), chromeMat);
-joyStem.position.set(-1.15, DECK_Y+0.15, DECK_Z);
+joyStem.position.set(-1.4, DECK_Y+0.15, DECK_Z);
 deck.add(joyStem);
 const joyBall = new THREE.Mesh(new THREE.SphereGeometry(0.09, 18, 14),
   new THREE.MeshStandardMaterial({ color:0xff7ad9, emissive:0xff2fc8, emissiveIntensity:1.5, roughness:0.25 }));
-joyBall.position.set(-1.15, DECK_Y+0.3, DECK_Z);
+joyBall.position.set(-1.4, DECK_Y+0.3, DECK_Z);
 deck.add(joyBall);
 // buttons
 const btnWhite = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.055, 20), ledWhiteMat);
-btnWhite.position.set(0.45, DECK_Y+0.02, DECK_Z);
+btnWhite.position.set(0.6, DECK_Y+0.02, DECK_Z);
 deck.add(btnWhite);
 const btnPink = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.055, 20), pinkNeonMat);
-btnPink.position.set(1.05, DECK_Y+0.02, DECK_Z);
+btnPink.position.set(1.25, DECK_Y+0.02, DECK_Z);
 deck.add(btnPink);
 // LED counters (canvas-drawn red digits)
 (function counters(){
@@ -366,7 +366,7 @@ deck.add(btnPink);
   c.fillText('00', 121, 72); c.fillText('00', 391, 72);
   const m = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.24),
     new THREE.MeshBasicMaterial({ map:new THREE.CanvasTexture(cv) }));
-  m.position.set(-2.35, DECK_Y+0.03, DECK_Z);
+  m.position.set(-3.05, DECK_Y+0.03, DECK_Z);
   m.rotation.x = -Math.PI/2;
   deck.add(m);
 })();
@@ -382,7 +382,7 @@ deck.add(btnPink);
   c.fillText('PRIZE OUT', 256, 68);
   const m = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.2),
     new THREE.MeshBasicMaterial({ map:new THREE.CanvasTexture(cv) }));
-  m.position.set(2.35, DECK_Y+0.03, DECK_Z);
+  m.position.set(3.05, DECK_Y+0.03, DECK_Z);
   m.rotation.x = -Math.PI/2;
   deck.add(m);
 })();
@@ -874,7 +874,9 @@ const DEFAULT_BROKERS = [
   'wss://test.mosquitto.org:8081',
 ];
 const brokerOverride = new URLSearchParams(location.search).get('b');
-const BROKERS = brokerOverride ? [brokerOverride] : DEFAULT_BROKERS;
+// override first, then the shared default rotation — both pages walk the same
+// ordered list, so screen and phones converge on the first live broker
+const BROKERS = brokerOverride ? [brokerOverride, ...DEFAULT_BROKERS] : DEFAULT_BROKERS;
 
 const ROOM_ID = 'sr' + Math.random().toString(36).slice(2, 8);  // fixed for page lifetime
 const TOPIC = {
@@ -884,17 +886,23 @@ const TOPIC = {
 };
 const BOOT_ID = Math.random().toString(36).slice(2, 8);  // changes when screen reloads
 
-(function renderQR() {
+let lastQRBroker = null;
+function renderQR(brokerUrl) {
+  if (brokerUrl === lastQRBroker) return;
+  lastQRBroker = brokerUrl;
   const url = new URL('controller.html', location.href);
   url.searchParams.set('r', ROOM_ID);
-  if (brokerOverride) url.searchParams.set('b', brokerOverride);
-  new QRCode(document.getElementById('qr'), { text:url.href, width:168, height:168, correctLevel:QRCode.CorrectLevel.M });
-  document.getElementById('roomtag').textContent = '연결 준비 중…';
-})();
+  url.searchParams.set('b', brokerUrl);   // phones start on the screen's live broker
+  const qrEl = document.getElementById('qr');
+  qrEl.innerHTML = '';
+  new QRCode(qrEl, { text:url.href, width:168, height:168, correctLevel:QRCode.CorrectLevel.M });
+}
+renderQR(BROKERS[0]);
+document.getElementById('roomtag').textContent = '연결 준비 중…';
 
 const roomTagEl = document.getElementById('roomtag');
 const ROOM_LABEL = 'ROOM ' + ROOM_ID.replace(/^sr/, '').toUpperCase();
-let mq = null, brokerIdx = 0, presenceTimer = null;
+let mq = null, brokerIdx = 0, presenceTimer = null, consecFails = 0;
 const conns = new Map();  // clientId -> conn-like object (used as the key in players/waiting)
 
 function connectBroker() {
@@ -906,7 +914,9 @@ function connectBroker() {
   let wasUp = false;
   client.on('connect', () => {
     wasUp = true;
+    consecFails = 0;
     mq = client;
+    renderQR(url);   // keep the QR pointing at the broker we actually use
     roomTagEl.textContent = '서버 연결됨 ✓ · ' + ROOM_LABEL;
     client.subscribe(TOPIC.c2s + '+', { qos: 0 });
     publishPresence();
@@ -918,7 +928,8 @@ function connectBroker() {
   client.on('close', () => {
     clearInterval(presenceTimer);
     if (mq === client) mq = null;
-    if (!wasUp) brokerIdx++;      // never connected: try the next broker
+    // move to the next broker if this one won't connect, or keeps dying
+    if (!wasUp || ++consecFails >= 3) { brokerIdx++; consecFails = 0; }
     roomTagEl.textContent = '서버 재접속 중… · ' + ROOM_LABEL;
     setTimeout(connectBroker, 2000);
   });
@@ -1084,8 +1095,8 @@ function loop(now) {
   for (const p of players.values()) updatePlayer(p, dt);
   updateAttract(dt);
   physicsStep(dt);
-  camera.position.x = Math.sin(now/1000*0.1)*0.4;
-  camera.lookAt(0, 2.2, 0);
+  camera.position.x = Math.sin(now/1000*0.1)*0.3;
+  camera.lookAt(0, 2.3, 0);
   renderer.render(scene, camera);
 }
 requestAnimationFrame(loop);

@@ -216,7 +216,8 @@ const DEFAULT_BROKERS = [
   'wss://test.mosquitto.org:8081',
 ];
 const brokerOverride = new URLSearchParams(location.search).get('b');
-const BROKERS = brokerOverride ? [brokerOverride] : DEFAULT_BROKERS;
+// QR broker first, then the shared default rotation (same order as the screen)
+const BROKERS = brokerOverride ? [brokerOverride, ...DEFAULT_BROKERS] : DEFAULT_BROKERS;
 const MY_ID = 'c' + Math.random().toString(36).slice(2, 10);
 const TOPIC = {
   pub: `srclaw/${roomId}/c2s/${MY_ID}`,
@@ -224,7 +225,7 @@ const TOPIC = {
   presence: `srclaw/${roomId}/screen`,
 };
 const netDbg = document.getElementById('netdbg');
-let mq = null, brokerIdx = 0, role = null, closing = false;
+let mq = null, brokerIdx = 0, role = null, closing = false, consecFails = 0;
 let joined = false, screenBoot = null, lastScreenSign = 0, hbTimer = null, findTimer = null;
 
 function send(obj, force) {
@@ -245,6 +246,7 @@ function connect() {
   let wasUp = false;
   client.on('connect', () => {
     wasUp = true;
+    consecFails = 0;
     mq = client;
     netDbg.textContent = '서버 ✓';
     setState('게임 화면 찾는 중…', null);
@@ -282,7 +284,8 @@ function connect() {
     clearInterval(hbTimer);
     clearTimeout(findTimer);
     if (mq === client) mq = null;
-    if (!wasUp) brokerIdx++;      // never connected: try the next broker
+    // move to the next broker if this one won't connect, or keeps dying
+    if (!wasUp || ++consecFails >= 3) { brokerIdx++; consecFails = 0; }
     role = null;
     joined = false;               // must re-hello after reconnecting
     grabBtn.disabled = true;
