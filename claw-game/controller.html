@@ -251,6 +251,7 @@ function connect() {
     vibrate(30);
     client.subscribe([TOPIC.sub, TOPIC.presence], { qos: 1 });
     sendHello();
+    setTimeout(() => { if (!joined && mq === client) sendHello(); }, 1500);
     clearInterval(hbTimer);
     // until the screen confirms our role, keep re-sending hello (covers the
     // race where we reconnect before the screen has re-subscribed)
