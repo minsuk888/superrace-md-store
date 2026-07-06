@@ -489,6 +489,22 @@ function createClawRig(colorHex, name) {
   railBar.position.y = RAIL_Y + 0.16;
   scene.add(railBar);
 
+  // floor shadow + aim ring: the depth cue for front/back positioning
+  const blob = new THREE.Mesh(
+    new THREE.CircleGeometry(0.3, 24),
+    new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.34, depthWrite:false })
+  );
+  blob.rotation.x = -Math.PI/2;
+  blob.renderOrder = 2;
+  scene.add(blob);
+  const aimRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.27, 0.31, 28),
+    new THREE.MeshBasicMaterial({ color:colorHex, transparent:true, opacity:0.85, depthWrite:false, depthTest:false, side:THREE.DoubleSide })
+  );
+  aimRing.rotation.x = -Math.PI/2;
+  aimRing.renderOrder = 10;
+  scene.add(aimRing);
+
   let sprite = null;
   if (name) {
     sprite = makeNameSprite(name, colorCss);
@@ -496,7 +512,7 @@ function createClawRig(colorHex, name) {
   }
 
   return {
-    root, cable, head, railBar, sprite, coil,
+    root, cable, head, railBar, sprite, coil, blob, aimRing,
     // t: 0 = closed (hooks hang, tips converge), 1 = open (hooks flare out)
     setFingers(t) { hooks.forEach(h => { h.rotation.z = t*0.5; }); },
     apply(x, y, z, fingerT) {
@@ -510,9 +526,16 @@ function createClawRig(colorHex, name) {
       railBar.position.z = z;
       this.setFingers(fingerT);
       if (sprite) sprite.position.set(x, RAIL_Y + 0.44, z);
+      // shadow shrinks and darkens as the claw drops toward the floor
+      const hFrac = THREE.MathUtils.clamp(y / RAIL_Y, 0, 1);
+      blob.position.set(x, 0.012, z);
+      blob.scale.setScalar(0.55 + hFrac*0.55);
+      blob.material.opacity = 0.46 - hFrac*0.18;
+      aimRing.position.set(x, 0.016, z);
+      aimRing.scale.setScalar(0.55 + hFrac*0.55);
     },
     dispose() {
-      scene.remove(root, railBar);
+      scene.remove(root, railBar, blob, aimRing);
       if (sprite) scene.remove(sprite);
     },
   };
@@ -636,6 +659,8 @@ function createPlayer(connKey, conn, name) {
     rig: createClawRig(color, name),
     mode:'play', x:HOME_X[slot], y:RAIL_Y, z:HOME_Z,
     joy:{x:0,y:0}, fingerT:1, carried:null, quality:0, timer:0, targetY:0,
+    lastJoyAt:0, prevX:HOME_X[slot], prevZ:HOME_Z, vx:0, vz:0,
+    swayX:0, swayZ:0, gripOff:{x:0,z:0}, dropT:0,
   };
   players.set(connKey, player);
   refreshPlayerList();
@@ -704,6 +729,11 @@ function startGrab(p) {
 function updatePlayer(p, dt) {
   switch (p.mode) {
     case 'play': {
+      // dead-man: if a remote controller stops streaming (packet loss, app
+      // killed mid-drag), stop the claw instead of drifting forever
+      if (p.conn && (p.joy.x || p.joy.y) && performance.now() - p.lastJoyAt > 450) {
+        p.joy.x = 0; p.joy.y = 0;
+      }
       p.x = THREE.MathUtils.clamp(p.x + p.joy.x*CLAW_SPEED*dt, BOUNDS.minX, BOUNDS.maxX);
       p.z = THREE.MathUtils.clamp(p.z + p.joy.y*CLAW_SPEED*dt, BOUNDS.minZ, BOUNDS.maxZ);
       p.fingerT = 1;
@@ -711,6 +741,18 @@ function updatePlayer(p, dt) {
     }
     case 'descend': {
       p.y -= 2.4*dt;
+      // the descending claw shoves capsules in the pile aside
+      const tipY = p.y - 0.62;
+      for (const pr of prizes) {
+        if (pr.gone || pr.held) continue;
+        const dx = pr.pos.x - p.x, dz = pr.pos.z - p.z;
+        const hd = Math.hypot(dx, dz);
+        if (hd > 0.02 && hd < 0.4 && pr.pos.y > tipY - 0.12 && pr.pos.y < p.y) {
+          const push = (0.4 - hd) * 13 * dt;
+          pr.vel.x += dx/hd * push;
+          pr.vel.z += dz/hd * push;
+        }
+      }
       if (p.y <= p.targetY) { p.y = p.targetY; p.mode = 'closing'; p.timer = 0; }
       break;
     }
@@ -718,14 +760,21 @@ function updatePlayer(p, dt) {
       p.timer += dt;
       p.fingerT = Math.max(0, 1 - p.timer/0.45);
       if (p.timer >= 0.5) {
-        let best = null, bestD = 0.42;
+        let best = null, bestD = 0.45;
         for (const pr of prizes) {
           if (pr.gone || pr.held) continue;
           const d = Math.hypot(pr.pos.x-p.x, pr.pos.z-p.z);
           if (d < bestD) { bestD = d; best = pr; }
         }
         if (best) {
-          const q = THREE.MathUtils.clamp(1.05 - bestD*1.8, 0.15, 0.92);
+          // grip quality: distance from the claw axis + how buried the capsule is
+          let q = THREE.MathUtils.clamp(1.02 - bestD*2.0, 0.05, 0.9);
+          let crowd = 0;
+          for (const o of prizes) {
+            if (o !== best && !o.gone && !o.held && o.pos.distanceTo(best.pos) < PRIZE_R*2.4) crowd++;
+          }
+          if (crowd >= 2) q *= 0.75;
+          else if (crowd === 1) q *= 0.88;
           if (Math.random() < q) {
             best.held = true;
             best.holder = p;
@@ -733,9 +782,25 @@ function updatePlayer(p, dt) {
             best.restT = 0;
             p.carried = best;
             p.quality = q;
+            // keep the off-center grip: the capsule hangs where it was grabbed
+            p.gripOff.x = THREE.MathUtils.clamp(best.pos.x - p.x, -0.11, 0.11);
+            p.gripOff.z = THREE.MathUtils.clamp(best.pos.z - p.z, -0.11, 0.11);
+            p.swayX = p.swayZ = 0;
+            p.dropT = 0;
+          } else {
+            // squeezed out: the closing hooks kick the capsule away
+            let nx = best.pos.x - p.x, nz = best.pos.z - p.z;
+            let n = Math.hypot(nx, nz);
+            if (n < 0.02) { const a = Math.random()*Math.PI*2; nx = Math.cos(a); nz = Math.sin(a); n = 1; }
+            const kick = 1.0 + Math.random()*0.8;
+            best.vel.x += nx/n * kick;
+            best.vel.z += nz/n * kick;
+            best.vel.y += 0.6 + Math.random()*0.5;
+            best.lastHolder = null;
           }
         }
         p.mode = 'ascend';
+        p.fingerT = p.carried ? 0.2 : 0;
         sendTo(p.conn, { t:'phase', v: p.carried ? 'caught' : 'miss' });
       }
       break;
@@ -751,7 +816,7 @@ function updatePlayer(p, dt) {
       const d = Math.hypot(dx, dz);
       slipCheck(p, dt);
       if (!p.carried) { p.mode = 'return'; break; }
-      if (d < 0.05) { p.mode = 'release'; p.timer = 0; }
+      if (d < 0.05) { p.mode = 'release'; p.timer = 0; p.dropT = 0; }
       else {
         const s = Math.min(1.7*dt, d);
         p.x += dx/d*s; p.z += dz/d*s;
@@ -765,7 +830,7 @@ function updatePlayer(p, dt) {
         const pr = p.carried;
         pr.held = false;
         pr.holder = null;
-        pr.vel.set(0, -0.5, 0);
+        pr.vel.set(p.vx*0.3, -0.5, p.vz*0.3);
         p.carried = null;
       }
       if (p.timer >= 0.9) p.mode = 'return';
@@ -785,23 +850,45 @@ function updatePlayer(p, dt) {
       break;
     }
   }
+
+  // claw velocity (drives carried-capsule sway and drop throws)
+  if (dt > 0) {
+    p.vx = (p.x - p.prevX) / dt;
+    p.vz = (p.z - p.prevZ) / dt;
+  }
+  p.prevX = p.x; p.prevZ = p.z;
+
   if (p.carried) {
-    p.carried.pos.set(p.x, p.y - 0.62, p.z);
-    p.carried.vel.set(0,0,0);
+    // the capsule lags behind claw movement like a pendulum
+    const k = Math.min(dt*5, 1);
+    p.swayX += ((-p.vx*0.16) - p.swayX) * k;
+    p.swayZ += ((-p.vz*0.16) - p.swayZ) * k;
+    if (p.dropT > 0) {
+      // telegraphed drop: the hooks visibly lose grip before letting go
+      p.dropT -= dt;
+      p.fingerT = 0.2 + (0.28 - Math.max(p.dropT, 0)) / 0.28 * 0.35;
+      if (p.dropT <= 0) {
+        const pr = p.carried;
+        pr.held = false;
+        pr.holder = null;
+        pr.vel.set(p.vx*0.5, -0.2, p.vz*0.5);
+        p.carried = null;
+        sendTo(p.conn, { t:'phase', v:'slip' });
+      }
+    }
+    if (p.carried) {
+      p.carried.pos.set(p.x + p.gripOff.x + p.swayX, p.y - 0.6, p.z + p.gripOff.z + p.swayZ);
+      p.carried.vel.set(0,0,0);
+    }
   }
   p.rig.apply(p.x, p.y, p.z, p.fingerT);
 }
 function slipCheck(p, dt) {
-  if (!p.carried) return;
-  const slipRate = (1 - p.quality) * 0.22;
-  if (Math.random() < slipRate*dt) {
-    const pr = p.carried;
-    pr.held = false;
-    pr.holder = null;
-    pr.vel.set((Math.random()-.5)*1.2, 0, (Math.random()-.5)*1.2);
-    p.carried = null;
-    sendTo(p.conn, { t:'phase', v:'slip' });
-  }
+  if (!p.carried || p.dropT > 0) return;
+  // weak grips and hard swings both shake the capsule loose
+  const sway = Math.hypot(p.vx, p.vz);
+  const rate = (1 - p.quality) * 0.3 + sway * 0.1;
+  if (Math.random() < rate*dt) p.dropT = 0.28;
 }
 
 // ---------- win handling ----------
@@ -1002,6 +1089,7 @@ function handleData(conn, d) {
   const p = players.get(conn);
   if (!p) return;
   if (d.t === 'joy') {
+    p.lastJoyAt = performance.now();
     p.joy.x = THREE.MathUtils.clamp(+d.x || 0, -1, 1);
     p.joy.y = THREE.MathUtils.clamp(+d.y || 0, -1, 1);
   } else if (d.t === 'grab') {

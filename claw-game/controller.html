@@ -230,7 +230,7 @@ let joined = false, screenBoot = null, lastScreenSign = 0, hbTimer = null, findT
 
 function send(obj, force) {
   if (!mq || (!force && role !== 'active')) return;
-  try { mq.publish(TOPIC.pub, JSON.stringify(obj), { qos: obj.t === 'joy' || obj.t === 'hb' ? 0 : 1 }); } catch(e){}
+  try { mq.publish(TOPIC.pub, JSON.stringify(obj), { qos: (obj.t === 'joy' && !obj.end) || obj.t === 'hb' ? 0 : 1 }); } catch(e){}
 }
 function sendHello() {
   joined = false;
@@ -356,7 +356,9 @@ function endJoy(e) {
   if (e.pointerId !== joy.pid) return;
   joy.active = false; joy.x = joy.y = 0;
   setKnob(0, 0);
-  send({ t:'joy', x:0, y:0 });
+  // the stop packet is the one that must not get lost: qos1 + a repeat
+  send({ t:'joy', x:0, y:0, end:1 });
+  setTimeout(() => { if (!joy.active) send({ t:'joy', x:0, y:0, end:1 }); }, 150);
 }
 joyBase.addEventListener('pointerup', endJoy);
 joyBase.addEventListener('pointercancel', endJoy);
