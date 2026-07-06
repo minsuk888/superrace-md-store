@@ -220,14 +220,14 @@ scene.add(ground);
 const machine = new THREE.Group();
 scene.add(machine);
 
-const whiteGloss = new THREE.MeshStandardMaterial({ color:0xf2eff4, roughness:0.3, metalness:0.12 });
+const whiteGloss = new THREE.MeshPhysicalMaterial({ color:0xf2eff4, roughness:0.32, metalness:0.05, clearcoat:0.9, clearcoatRoughness:0.25 });
 const silverMat  = new THREE.MeshStandardMaterial({ color:0xd9d9e2, roughness:0.22, metalness:0.85 });
 const chromeMat  = new THREE.MeshStandardMaterial({ color:0xffffff, roughness:0.12, metalness:1.0 });
 const darkMat    = new THREE.MeshStandardMaterial({ color:0x1a1a22, roughness:0.5, metalness:0.5 });
 const pinkNeonMat  = new THREE.MeshStandardMaterial({ color:0xff9ae2, emissive:0xff2fc8, emissiveIntensity:2.1, roughness:0.4 });
 const pinkPanelMat = new THREE.MeshStandardMaterial({ color:0xffb2e9, emissive:0xff3fd1, emissiveIntensity:1.35, roughness:0.5 });
 const ledWhiteMat  = new THREE.MeshStandardMaterial({ color:0xffffff, emissive:0xd4ecff, emissiveIntensity:2.4 });
-const glassMat = new THREE.MeshStandardMaterial({ color:0xffffff, transparent:true, opacity:0.09, roughness:0.05, metalness:0.9, side:THREE.DoubleSide });
+const glassMat = new THREE.MeshPhysicalMaterial({ color:0xffffff, transmission:0.95, roughness:0.04, thickness:0.04, ior:1.5, transparent:true, metalness:0, side:THREE.DoubleSide });
 const floorPink = new THREE.MeshStandardMaterial({ color:0xffb5e8, emissive:0xff3fd1, emissiveIntensity:0.22, roughness:0.16, metalness:0.2 });
 
 const CAB_W = 8.0, CAB_D = 3.2, H = 3.9;
@@ -269,14 +269,16 @@ machine.add(tube);
   machine.add(rim);
 });
 
-// glass walls
-function wall(w, h, x, z, ry) {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), glassMat);
+// glass walls — the FRONT pane must not use transmission: refractive glass
+// drops transparent objects behind it (aim laser, shadows) from its pass
+const glassFrontMat = new THREE.MeshStandardMaterial({ color:0xffffff, transparent:true, opacity:0.07, roughness:0.05, metalness:0.9, side:THREE.DoubleSide });
+function wall(w, h, x, z, ry, mat) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat || glassMat);
   m.position.set(x, h/2, z);
   m.rotation.y = ry;
   machine.add(m);
 }
-wall(CAB_W, H,  0,  CAB_D/2+0.02, 0);
+wall(CAB_W, H,  0,  CAB_D/2+0.02, 0, glassFrontMat);
 wall(CAB_W, H,  0, -CAB_D/2-0.02, 0);
 wall(CAB_D, H, -CAB_W/2-0.02, 0, Math.PI/2);
 wall(CAB_D, H,  CAB_W/2+0.02, 0, Math.PI/2);
@@ -322,6 +324,33 @@ for (let i=0;i<5;i++) for (let j=0;j<2;j++) {
   led.position.set(-3.1 + i*1.55, H - 0.05, j===0 ? -0.85 : 0.85);
   machine.add(led);
 }
+
+// fake bloom: additive glow sprites over the marquee, neon tubes, joystick
+(function glowPass(){
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 128;
+  const c = cv.getContext('2d');
+  const g = c.createRadialGradient(64, 64, 2, 64, 64, 64);
+  g.addColorStop(0, 'rgba(255,255,255,0.9)');
+  g.addColorStop(0.35, 'rgba(255,140,225,0.45)');
+  g.addColorStop(1, 'rgba(255,80,210,0)');
+  c.fillStyle = g;
+  c.fillRect(0, 0, 128, 128);
+  const tex = new THREE.CanvasTexture(cv);
+  function glow(x, y, z, sx, sy, opacity) {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({
+      map:tex, color:0xff6ad9, blending:THREE.AdditiveBlending,
+      depthWrite:false, transparent:true, opacity,
+    }));
+    s.position.set(x, y, z);
+    s.scale.set(sx, sy, 1);
+    scene.add(s);
+  }
+  glow(0, H + 0.68, CAB_D/2 + 0.4, CAB_W + 1.6, 2.0, 0.55);                 // marquee
+  glow(-(CAB_W/2+0.28), (H+1.1)/2 - 1.05, CAB_D/2 + 0.3, 1.1, H + 1.8, 0.4); // left neon
+  glow( (CAB_W/2+0.28), (H+1.1)/2 - 1.05, CAB_D/2 + 0.3, 1.1, H + 1.8, 0.4); // right neon
+  glow(-1.4, 0.34, CAB_D/2 + 0.86, 0.7, 0.7, 0.5);                           // joystick ball
+})();
 
 // front control deck: joystick, buttons, LED counters, PRIZE OUT plate
 const deck = new THREE.Group();
@@ -388,6 +417,21 @@ deck.add(btnPink);
 })();
 
 // ---------- claw rig factory (chrome 4-hook claw, coiled cable) ----------
+let _shadowTex = null;
+function getShadowTexture() {
+  if (_shadowTex) return _shadowTex;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 128;
+  const c = cv.getContext('2d');
+  const g = c.createRadialGradient(64, 64, 6, 64, 64, 62);
+  g.addColorStop(0, 'rgba(0,0,0,0.85)');
+  g.addColorStop(0.55, 'rgba(0,0,0,0.4)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = g;
+  c.fillRect(0, 0, 128, 128);
+  _shadowTex = new THREE.CanvasTexture(cv);
+  return _shadowTex;
+}
 function makeNameSprite(name, colorCss) {
   const cv = document.createElement('canvas');
   cv.width = 320; cv.height = 84;
@@ -489,21 +533,28 @@ function createClawRig(colorHex, name) {
   railBar.position.y = RAIL_Y + 0.16;
   scene.add(railBar);
 
-  // floor shadow + aim ring: the depth cue for front/back positioning
+  // soft drop-shadow that drapes over whatever is under the claw
   const blob = new THREE.Mesh(
-    new THREE.CircleGeometry(0.3, 24),
-    new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.34, depthWrite:false })
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({ map:getShadowTexture(), transparent:true, opacity:0.5, depthWrite:false })
   );
   blob.rotation.x = -Math.PI/2;
   blob.renderOrder = 2;
   scene.add(blob);
-  const aimRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.27, 0.31, 28),
-    new THREE.MeshBasicMaterial({ color:colorHex, transparent:true, opacity:0.85, depthWrite:false, depthTest:false, side:THREE.DoubleSide })
+  // translucent shell marking the exact capsule the claw would grab
+  const targetShell = new THREE.Mesh(
+    new THREE.SphereGeometry(PRIZE_R*1.14, 20, 14),
+    new THREE.MeshBasicMaterial({ color:colorHex, transparent:true, opacity:0.34, depthWrite:false, depthTest:false })
   );
-  aimRing.rotation.x = -Math.PI/2;
-  aimRing.renderOrder = 10;
-  scene.add(aimRing);
+  targetShell.renderOrder = 8;
+  targetShell.visible = false;
+  scene.add(targetShell);
+  const laser = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.016, 0.016, 1, 6),
+    new THREE.MeshBasicMaterial({ color:colorHex, transparent:true, opacity:0.9, depthWrite:false })
+  );
+  laser.visible = false;
+  scene.add(laser);
 
   let sprite = null;
   if (name) {
@@ -512,7 +563,7 @@ function createClawRig(colorHex, name) {
   }
 
   return {
-    root, cable, head, railBar, sprite, coil, blob, aimRing,
+    root, cable, head, railBar, sprite, coil, blob, targetShell, laser,
     // t: 0 = closed (hooks hang, tips converge), 1 = open (hooks flare out)
     setFingers(t) { hooks.forEach(h => { h.rotation.z = t*0.5; }); },
     apply(x, y, z, fingerT) {
@@ -526,16 +577,19 @@ function createClawRig(colorHex, name) {
       railBar.position.z = z;
       this.setFingers(fingerT);
       if (sprite) sprite.position.set(x, RAIL_Y + 0.44, z);
-      // shadow shrinks and darkens as the claw drops toward the floor
-      const hFrac = THREE.MathUtils.clamp(y / RAIL_Y, 0, 1);
-      blob.position.set(x, 0.012, z);
-      blob.scale.setScalar(0.55 + hFrac*0.55);
-      blob.material.opacity = 0.46 - hFrac*0.18;
-      aimRing.position.set(x, 0.016, z);
-      aimRing.scale.setScalar(0.55 + hFrac*0.55);
+      // shadow sits on the surface below the claw (pile top or floor) and
+      // tightens/darkens as the claw gets closer to it
+      const surfY = this.shadowSurfaceY || 0;
+      const gap = THREE.MathUtils.clamp((y - 0.72 - surfY) / (RAIL_Y - 0.72), 0, 1);
+      blob.position.set(x, surfY + 0.02, z);
+      blob.scale.setScalar(0.5 + gap*0.75);
+      blob.material.opacity = 0.62 - gap*0.3;
+      const lTop = y - 0.78, lLen = Math.max(lTop - surfY, 0.01);
+      laser.scale.y = lLen;
+      laser.position.set(x, surfY + lLen/2, z);
     },
     dispose() {
-      scene.remove(root, railBar, blob, aimRing);
+      scene.remove(root, railBar, blob, targetShell, laser);
       if (sprite) scene.remove(sprite);
     },
   };
@@ -549,11 +603,11 @@ function makePrize(x, y, z) {
   const col = CAPSULE_COLORS[Math.floor(Math.random()*CAPSULE_COLORS.length)];
   const topHemi = new THREE.Mesh(
     new THREE.SphereGeometry(PRIZE_R, 20, 12, 0, Math.PI*2, 0, Math.PI/2),
-    new THREE.MeshStandardMaterial({ color:col, roughness:0.25, metalness:0.05 })
+    new THREE.MeshPhysicalMaterial({ color:col, roughness:0.18, metalness:0, clearcoat:1, clearcoatRoughness:0.12 })
   );
   const botHemi = new THREE.Mesh(
     new THREE.SphereGeometry(PRIZE_R, 20, 12, 0, Math.PI*2, Math.PI/2, Math.PI/2),
-    new THREE.MeshStandardMaterial({ color:0xf2f2f2, roughness:0.35 })
+    new THREE.MeshPhysicalMaterial({ color:0xf2f2f2, roughness:0.25, clearcoat:1, clearcoatRoughness:0.15 })
   );
   topHemi.castShadow = botHemi.castShadow = true;
   g.add(topHemi, botHemi);
@@ -660,7 +714,7 @@ function createPlayer(connKey, conn, name) {
     mode:'play', x:HOME_X[slot], y:RAIL_Y, z:HOME_Z,
     joy:{x:0,y:0}, fingerT:1, carried:null, quality:0, timer:0, targetY:0,
     lastJoyAt:0, prevX:HOME_X[slot], prevZ:HOME_Z, vx:0, vz:0,
-    swayX:0, swayZ:0, gripOff:{x:0,z:0}, dropT:0,
+    swayX:0, swayZ:0, gripOff:{x:0,z:0}, dropT:0, carryT:0,
   };
   players.set(connKey, player);
   refreshPlayerList();
@@ -760,7 +814,7 @@ function updatePlayer(p, dt) {
       p.timer += dt;
       p.fingerT = Math.max(0, 1 - p.timer/0.45);
       if (p.timer >= 0.5) {
-        let best = null, bestD = 0.45;
+        let best = null, bestD = 0.5;
         for (const pr of prizes) {
           if (pr.gone || pr.held) continue;
           const d = Math.hypot(pr.pos.x-p.x, pr.pos.z-p.z);
@@ -768,13 +822,13 @@ function updatePlayer(p, dt) {
         }
         if (best) {
           // grip quality: distance from the claw axis + how buried the capsule is
-          let q = THREE.MathUtils.clamp(1.02 - bestD*2.0, 0.05, 0.9);
+          let q = THREE.MathUtils.clamp(1.18 - bestD*1.5, 0.4, 0.97);
           let crowd = 0;
           for (const o of prizes) {
             if (o !== best && !o.gone && !o.held && o.pos.distanceTo(best.pos) < PRIZE_R*2.4) crowd++;
           }
-          if (crowd >= 2) q *= 0.75;
-          else if (crowd === 1) q *= 0.88;
+          if (crowd >= 2) q *= 0.9;
+          else if (crowd === 1) q *= 0.95;
           if (Math.random() < q) {
             best.held = true;
             best.holder = p;
@@ -783,8 +837,9 @@ function updatePlayer(p, dt) {
             p.carried = best;
             p.quality = q;
             // keep the off-center grip: the capsule hangs where it was grabbed
-            p.gripOff.x = THREE.MathUtils.clamp(best.pos.x - p.x, -0.11, 0.11);
-            p.gripOff.z = THREE.MathUtils.clamp(best.pos.z - p.z, -0.11, 0.11);
+            p.gripOff.x = THREE.MathUtils.clamp(best.pos.x - p.x, -0.05, 0.05);
+            p.gripOff.z = THREE.MathUtils.clamp(best.pos.z - p.z, -0.05, 0.05);
+            p.carryT = 0;
             p.swayX = p.swayZ = 0;
             p.dropT = 0;
           } else {
@@ -807,6 +862,7 @@ function updatePlayer(p, dt) {
     }
     case 'ascend': {
       p.y += 2.2*dt;
+      p.carryT += dt;
       slipCheck(p, dt);
       if (p.y >= RAIL_Y) { p.y = RAIL_Y; p.mode = p.carried ? 'toChute' : 'return'; }
       break;
@@ -814,6 +870,7 @@ function updatePlayer(p, dt) {
     case 'toChute': {
       const dx = HOLE.x - p.x, dz = HOLE.z - p.z;
       const d = Math.hypot(dx, dz);
+      p.carryT += dt;
       slipCheck(p, dt);
       if (!p.carried) { p.mode = 'return'; break; }
       if (d < 0.05) { p.mode = 'release'; p.timer = 0; p.dropT = 0; }
@@ -861,8 +918,8 @@ function updatePlayer(p, dt) {
   if (p.carried) {
     // the capsule lags behind claw movement like a pendulum
     const k = Math.min(dt*5, 1);
-    p.swayX += ((-p.vx*0.16) - p.swayX) * k;
-    p.swayZ += ((-p.vz*0.16) - p.swayZ) * k;
+    p.swayX += ((-p.vx*0.07) - p.swayX) * k;
+    p.swayZ += ((-p.vz*0.07) - p.swayZ) * k;
     if (p.dropT > 0) {
       // telegraphed drop: the hooks visibly lose grip before letting go
       p.dropT -= dt;
@@ -877,17 +934,35 @@ function updatePlayer(p, dt) {
       }
     }
     if (p.carried) {
-      p.carried.pos.set(p.x + p.gripOff.x + p.swayX, p.y - 0.6, p.z + p.gripOff.z + p.swayZ);
+      p.carried.pos.set(p.x + p.gripOff.x + p.swayX, p.y - 0.52, p.z + p.gripOff.z + p.swayZ);
       p.carried.vel.set(0,0,0);
     }
+  }
+  // aiming aids: shadow height = pile surface under the claw; the shell marks
+  // the exact capsule the grab logic would pick (same radius, same rule)
+  let surf = 0, target = null, tBest = 0.5;
+  for (const pr of prizes) {
+    if (pr.gone || pr.held) continue;
+    const d = Math.hypot(pr.pos.x-p.x, pr.pos.z-p.z);
+    if (d < 0.55) surf = Math.max(surf, pr.pos.y + PRIZE_R);
+    if (d < tBest) { tBest = d; target = pr; }
+  }
+  p.rig.shadowSurfaceY = surf;
+  p.rig.laser.visible = (p.mode === 'play' || p.mode === 'descend');
+  if (p.mode === 'play' && target) {
+    p.rig.targetShell.visible = true;
+    p.rig.targetShell.position.copy(target.pos);
+  } else {
+    p.rig.targetShell.visible = false;
   }
   p.rig.apply(p.x, p.y, p.z, p.fingerT);
 }
 function slipCheck(p, dt) {
   if (!p.carried || p.dropT > 0) return;
-  // weak grips and hard swings both shake the capsule loose
+  // a bad grip fails right at pickup; once it survives the lift it mostly holds
+  const early = p.carryT < 0.6 ? 2.6 : 0.5;
   const sway = Math.hypot(p.vx, p.vz);
-  const rate = (1 - p.quality) * 0.3 + sway * 0.1;
+  const rate = (1 - p.quality) * 0.2 * early + sway * 0.05;
   if (Math.random() < rate*dt) p.dropT = 0.28;
 }
 
