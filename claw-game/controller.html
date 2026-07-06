@@ -13,16 +13,16 @@
     padding:max(18px, env(safe-area-inset-top)) 20px max(26px, env(safe-area-inset-bottom)); }
 
   header { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
-  header .flag { width:30px; height:30px; border-radius:6px; border:2px solid #e10600;
+  header .flag { width:30px; height:30px; border-radius:6px; border:2px solid #ff3fd1;
     background:repeating-conic-gradient(#111 0% 25%, #fff 0% 50%) 0 0/50% 50%; }
   header h1 { font-size:18px; font-weight:800; }
-  header h1 span { color:#e10600; }
+  header h1 span { color:#ff3fd1; }
 
   #statebar { margin:4px 0 8px; padding:8px 20px; border-radius:999px; font-size:14px; font-weight:600;
     background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14); transition:all .3s; text-align:center; }
   #statebar.good { background:rgba(46,229,107,.15); border-color:#2ee56b; color:#aef5c8; }
   #statebar.warn { background:rgba(255,210,74,.12); border-color:#ffd24a; color:#ffe9a8; }
-  #statebar.bad  { background:rgba(225,6,0,.15); border-color:#e10600; color:#ffb3b0; }
+  #statebar.bad  { background:rgba(225,6,0,.15); border-color:#ff5f5f; color:#ffb3b0; }
 
   #joywrap { flex:1; display:flex; align-items:center; justify-content:center; width:100%; }
   #joybase { position:relative; width:min(62vw, 270px); height:min(62vw, 270px); border-radius:50%;
@@ -35,16 +35,16 @@
   .arrow.left  { left:12px;  top:50%;  transform:translateY(-50%); }
   .arrow.right { right:12px; top:50%;  transform:translateY(-50%); }
   #knob { position:absolute; width:38%; height:38%; left:31%; top:31%; border-radius:50%;
-    background:linear-gradient(160deg, #ff3b36, #b00500);
+    background:linear-gradient(160deg, #ff5fce, #b00b8a);
     border:3px solid rgba(255,255,255,.5);
     box-shadow:0 6px 18px rgba(0,0,0,.5), inset 0 3px 6px rgba(255,255,255,.35); }
 
   #grabbtn { width:min(70vw, 300px); height:76px; border:none; border-radius:20px;
     font-size:24px; font-weight:900; letter-spacing:2px; color:#fff; cursor:pointer;
-    background:linear-gradient(180deg, #ff9d1a, #e10600);
-    box-shadow:0 8px 0 #7a0300, 0 12px 24px rgba(225,6,0,.4);
+    background:linear-gradient(180deg, #ff7ae0, #d81fae);
+    box-shadow:0 8px 0 #6d0a58, 0 12px 24px rgba(216,31,174,.4);
     transition:transform .08s, box-shadow .08s; }
-  #grabbtn:active, #grabbtn.pressed { transform:translateY(6px); box-shadow:0 2px 0 #7a0300; }
+  #grabbtn:active, #grabbtn.pressed { transform:translateY(6px); box-shadow:0 2px 0 #6d0a58; }
   #grabbtn:disabled { filter:grayscale(.8) brightness(.6); box-shadow:0 8px 0 #333; }
 
   footer { margin-top:14px; font-size:11px; color:#556; letter-spacing:1px; }
@@ -53,20 +53,20 @@
   #gate { position:fixed; inset:0; z-index:60; display:flex; flex-direction:column;
     align-items:center; justify-content:center; gap:18px; padding:30px;
     background:radial-gradient(120% 100% at 50% 0%, #1a1a2e 0%, #0a0a12 70%); }
-  #gate .flag { width:54px; height:54px; border-radius:10px; border:3px solid #e10600;
+  #gate .flag { width:54px; height:54px; border-radius:10px; border:3px solid #ff3fd1;
     background:repeating-conic-gradient(#111 0% 25%, #fff 0% 50%) 0 0/50% 50%; }
   #gate h2 { font-size:22px; font-weight:800; text-align:center; line-height:1.4; }
-  #gate h2 span { color:#e10600; }
+  #gate h2 span { color:#ff3fd1; }
   #gate p { font-size:13px; color:#9aa; text-align:center; }
   #nameinput { width:min(80vw, 300px); padding:15px 18px; font-size:19px; font-weight:700;
     border-radius:14px; border:2px solid rgba(255,255,255,.2); outline:none; text-align:center;
     background:rgba(255,255,255,.07); color:#fff; user-select:text; -webkit-user-select:text; }
-  #nameinput:focus { border-color:#e10600; }
+  #nameinput:focus { border-color:#ff3fd1; }
   #joinbtn { width:min(80vw, 300px); padding:16px; font-size:19px; font-weight:900; letter-spacing:1px;
     border:none; border-radius:14px; color:#fff; cursor:pointer;
-    background:linear-gradient(180deg, #ff3b36, #b00500);
-    box-shadow:0 6px 0 #7a0300; }
-  #joinbtn:active { transform:translateY(4px); box-shadow:0 2px 0 #7a0300; }
+    background:linear-gradient(180deg, #ff5fce, #b00b8a);
+    box-shadow:0 6px 0 #6d0a58; }
+  #joinbtn:active { transform:translateY(4px); box-shadow:0 2px 0 #6d0a58; }
   #joinbtn:disabled { filter:grayscale(.7) brightness(.6); }
 
   /* ---------- prize ticket ---------- */
@@ -283,6 +283,7 @@ function connect() {
     if (mq === client) mq = null;
     if (!wasUp) brokerIdx++;      // never connected: try the next broker
     role = null;
+    joined = false;               // must re-hello after reconnecting
     grabBtn.disabled = true;
     setState('연결이 끊겼어요 — 다시 연결 중…', 'bad');
     netDbg.textContent = '재접속 중';

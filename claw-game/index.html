@@ -12,15 +12,15 @@
 
   #brand { top:22px; left:26px; display:flex; align-items:center; gap:14px; }
   #brand .flag { width:44px; height:44px; border-radius:8px;
-    background:repeating-conic-gradient(#111 0% 25%, #fff 0% 50%) 0 0/50% 50%; border:2px solid #e10600; }
+    background:repeating-conic-gradient(#111 0% 25%, #fff 0% 50%) 0 0/50% 50%; border:2px solid #ff3fd1; }
   #brand h1 { font-size:25px; font-weight:800; letter-spacing:1px; }
-  #brand h1 span { color:#e10600; }
+  #brand h1 span { color:#ff3fd1; }
   #brand small { display:block; font-size:12px; font-weight:400; color:#9aa; letter-spacing:3px; }
 
   #score { top:96px; left:26px; display:flex; gap:12px; }
   .scorebox { background:rgba(10,10,20,.7); border:1px solid rgba(255,255,255,.12);
     border-radius:12px; padding:7px 18px; text-align:center; }
-  .scorebox .n { font-size:24px; font-weight:800; color:#ffd24a; }
+  .scorebox .n { font-size:24px; font-weight:800; color:#ff9ae0; }
   .scorebox .l { font-size:10px; color:#9aa; letter-spacing:2px; }
 
   #playerlist { top:170px; left:26px; display:flex; flex-direction:column; gap:8px; max-width:230px; }
@@ -30,18 +30,18 @@
 
   #qrcard { top:22px; right:26px; background:rgba(255,255,255,.97); color:#111;
     border-radius:16px; padding:16px 16px 12px; text-align:center;
-    box-shadow:0 8px 40px rgba(225,6,0,.35); }
+    box-shadow:0 8px 40px rgba(255,63,209,.35); }
   #qrcard h2 { font-size:14px; margin-bottom:9px; font-weight:700; }
-  #qrcard h2 b { color:#e10600; }
+  #qrcard h2 b { color:#ff3fd1; }
   #qr { width:168px; height:168px; margin:0 auto; }
   #qr img, #qr canvas { width:100% !important; height:100% !important; }
   #roomtag { margin-top:7px; font-size:11px; color:#888; letter-spacing:1px; }
 
   #feed { top:280px; right:26px; width:250px; display:flex; flex-direction:column; gap:7px; }
   #feed h3 { font-size:12px; color:#9aa; letter-spacing:2px; text-align:right; margin-bottom:2px; }
-  .win-item { background:rgba(10,10,20,.78); border:1px solid rgba(255,210,74,.35);
+  .win-item { background:rgba(10,10,20,.78); border:1px solid rgba(255,63,209,.4);
     border-radius:10px; padding:8px 12px; font-size:13px; line-height:1.5; }
-  .win-item b { color:#ffd24a; }
+  .win-item b { color:#ff9ae0; }
   .win-item .code { font-family:monospace; font-weight:700; color:#2ee56b; letter-spacing:1px; }
 
   #status { left:50%; bottom:26px; transform:translateX(-50%);
@@ -54,7 +54,7 @@
 
   #bigmsg { left:50%; top:38%; transform:translate(-50%,-50%); font-size:64px; font-weight:900;
     text-shadow:0 4px 30px rgba(0,0,0,.7); opacity:0; pointer-events:none;
-    transition:opacity .3s, transform .3s; color:#ffd24a; letter-spacing:2px; text-align:center; }
+    transition:opacity .3s, transform .3s; color:#ff9ae0; letter-spacing:2px; text-align:center; }
   #bigmsg.show { opacity:1; transform:translate(-50%,-50%) scale(1.06); }
   #bigmsg small { display:block; font-size:30px; color:#fff; margin-top:6px; }
 
@@ -65,9 +65,9 @@
 
   #touchgrab { left:26px; bottom:26px; display:none; padding:18px 30px; border:none; border-radius:18px;
     font-size:22px; font-weight:900; color:#fff; cursor:pointer;
-    background:linear-gradient(180deg, #ff9d1a, #e10600);
-    box-shadow:0 6px 0 #7a0300, 0 10px 22px rgba(225,6,0,.4); }
-  #touchgrab:active { transform:translateY(4px); box-shadow:0 2px 0 #7a0300; }
+    background:linear-gradient(180deg, #ff7ae0, #d81fae);
+    box-shadow:0 6px 0 #6d0a58, 0 10px 22px rgba(216,31,174,.4); }
+  #touchgrab:active { transform:translateY(4px); box-shadow:0 2px 0 #6d0a58; }
   #touchgrab.show { display:block; }
 </style>
 </head>
@@ -116,16 +116,16 @@ const MAX_PLAYERS = 4;
 const BOUNDS = { minX:-2.75, maxX:2.75, minZ:-1.30, maxZ:1.30 };
 const RAIL_Y = 3.35;
 const FLOOR_Y = 0;
-const HOLE = { x:-2.18, z:0.86, r:0.46 };
-const HOME_X = [1.0, -1.0, 2.1, 0.0];   // per-slot home position
+const HOLE = { x:2.18, z:0.86, r:0.46 };
+const HOME_X = [-1.0, 1.0, -2.1, 0.3];   // per-slot home position
 const HOME_Z = 0.2;
 const PRIZE_R = 0.27;
 const PRIZE_COUNT = 20;
 const CLAW_SPEED = 2.0;
 const GRAVITY = 9.8;
 
-const PLAYER_COLORS = [0xe10600, 0x2e9cff, 0x2ee56b, 0xffd24a];
-const PLAYER_COLORS_CSS = ['#e10600', '#2e9cff', '#2ee56b', '#ffd24a'];
+const PLAYER_COLORS = [0xff3fd1, 0x2e9cff, 0x2ee56b, 0xffd24a];
+const PLAYER_COLORS_CSS = ['#ff3fd1', '#2e9cff', '#2ee56b', '#ffd24a'];
 
 // 경품 목록 — 이름/이모지/가중치(높을수록 잘 나옴)
 const PRODUCTS = [
@@ -149,6 +149,8 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.22;
 container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -156,23 +158,54 @@ scene.background = new THREE.Color(0x0a0a12);
 scene.fog = new THREE.Fog(0x0a0a12, 15, 30);
 
 const camera = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, 0.1, 60);
-camera.position.set(0, 3.9, 8.3);
-camera.lookAt(0, 1.85, 0);
+camera.position.set(0, 4.2, 9.25);
+camera.lookAt(0, 1.95, 0);
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-const key = new THREE.DirectionalLight(0xffffff, 1.1);
-key.position.set(4, 9, 6);
+// environment map (drawn on a canvas): dark room + ceiling LED strips + pink
+// floor glow — gives the chrome claw and glossy cabinet something to reflect
+(function makeEnv() {
+  const cv = document.createElement('canvas');
+  cv.width = 512; cv.height = 256;
+  const c = cv.getContext('2d');
+  const g = c.createLinearGradient(0, 0, 0, 256);
+  g.addColorStop(0, '#3c3c48'); g.addColorStop(0.5, '#141419'); g.addColorStop(1, '#331424');
+  c.fillStyle = g; c.fillRect(0, 0, 512, 256);
+  c.fillStyle = '#e4f4ff';
+  for (let i = 0; i < 6; i++) c.fillRect(24 + i * 82, 26, 48, 11);
+  c.fillStyle = '#ff8ade';
+  c.fillRect(0, 208, 512, 20);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromEquirectangular(tex).texture;
+  tex.dispose(); pmrem.dispose();
+})();
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+const key = new THREE.DirectionalLight(0xffffff, 0.75);
+key.position.set(3, 8, 6);
 key.castShadow = true;
 key.shadow.mapSize.set(2048, 2048);
 key.shadow.camera.left = -7; key.shadow.camera.right = 7;
 key.shadow.camera.top = 7;   key.shadow.camera.bottom = -7;
 scene.add(key);
-const rim = new THREE.PointLight(0xe10600, 1.4, 16);
-rim.position.set(-6, 3, -3);
-scene.add(rim);
-const fill = new THREE.PointLight(0x4a7bff, 0.8, 16);
-fill.position.set(6, 2, 4);
-scene.add(fill);
+// interior: cool-white ceiling light + pink floor glow (like the reference)
+const ceilLight = new THREE.PointLight(0xe8f4ff, 1.25, 8);
+ceilLight.position.set(0, 3.5, 0.4);
+scene.add(ceilLight);
+const floorGlow = new THREE.PointLight(0xff5fd8, 1.3, 6);
+floorGlow.position.set(0, 0.5, 0.3);
+scene.add(floorGlow);
+// marquee + neon pillar spill
+const marqueeLight = new THREE.PointLight(0xff4fd8, 1.1, 11);
+marqueeLight.position.set(0, 4.6, 2.6);
+scene.add(marqueeLight);
+const neonL = new THREE.PointLight(0xff4fd8, 0.6, 5);
+neonL.position.set(-3.4, 1.8, 2.0);
+scene.add(neonL);
+const neonR = neonL.clone();
+neonR.position.x = 3.4;
+scene.add(neonR);
 
 const ground = new THREE.Mesh(
   new THREE.PlaneGeometry(70, 70),
@@ -183,46 +216,57 @@ ground.position.y = -1.5;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// ---------- cabinet (wide 16:9 friendly) ----------
+// ---------- cabinet (white/chrome + pink neon, modeled on the reference) ----------
 const machine = new THREE.Group();
 scene.add(machine);
 
-const redMat   = new THREE.MeshStandardMaterial({ color:0xe10600, roughness:0.35, metalness:0.3 });
-const darkMat  = new THREE.MeshStandardMaterial({ color:0x16161f, roughness:0.6, metalness:0.4 });
-const glassMat = new THREE.MeshPhongMaterial({ color:0xbfe6ff, transparent:true, opacity:0.10, shininess:120, side:THREE.DoubleSide });
+const whiteGloss = new THREE.MeshStandardMaterial({ color:0xf2eff4, roughness:0.3, metalness:0.12 });
+const silverMat  = new THREE.MeshStandardMaterial({ color:0xd9d9e2, roughness:0.22, metalness:0.85 });
+const chromeMat  = new THREE.MeshStandardMaterial({ color:0xffffff, roughness:0.12, metalness:1.0 });
+const darkMat    = new THREE.MeshStandardMaterial({ color:0x1a1a22, roughness:0.5, metalness:0.5 });
+const pinkNeonMat  = new THREE.MeshStandardMaterial({ color:0xff9ae2, emissive:0xff2fc8, emissiveIntensity:2.1, roughness:0.4 });
+const pinkPanelMat = new THREE.MeshStandardMaterial({ color:0xffb2e9, emissive:0xff3fd1, emissiveIntensity:1.35, roughness:0.5 });
+const ledWhiteMat  = new THREE.MeshStandardMaterial({ color:0xffffff, emissive:0xd4ecff, emissiveIntensity:2.4 });
+const glassMat = new THREE.MeshStandardMaterial({ color:0xffffff, transparent:true, opacity:0.09, roughness:0.05, metalness:0.9, side:THREE.DoubleSide });
+const floorPink = new THREE.MeshStandardMaterial({ color:0xffb5e8, emissive:0xff3fd1, emissiveIntensity:0.22, roughness:0.16, metalness:0.2 });
 
 const CAB_W = 6.2, CAB_D = 3.2, H = 3.9;
 
-const base = new THREE.Mesh(new THREE.BoxGeometry(CAB_W+0.5, 1.5, CAB_D+0.5), redMat);
+// body
+const base = new THREE.Mesh(new THREE.BoxGeometry(CAB_W+0.5, 1.5, CAB_D+0.5), whiteGloss);
 base.position.y = -0.75;
 base.castShadow = base.receiveShadow = true;
 machine.add(base);
-const baseTrim = new THREE.Mesh(new THREE.BoxGeometry(CAB_W+0.6, 0.18, CAB_D+0.6), darkMat);
+const baseTrim = new THREE.Mesh(new THREE.BoxGeometry(CAB_W+0.6, 0.14, CAB_D+0.6), silverMat);
 baseTrim.position.y = -0.02;
 machine.add(baseTrim);
 
-const floorMesh = new THREE.Mesh(
-  new THREE.BoxGeometry(CAB_W, 0.1, CAB_D),
-  new THREE.MeshStandardMaterial({ color:0x22222e, roughness:0.8 })
-);
+// glossy pink play floor
+const floorMesh = new THREE.Mesh(new THREE.BoxGeometry(CAB_W, 0.1, CAB_D), floorPink);
 floorMesh.position.y = -0.05;
 floorMesh.receiveShadow = true;
 machine.add(floorMesh);
 
+// prize chute (right side, like the reference) with chrome rim + acrylic guard
 const holeMesh = new THREE.Mesh(
   new THREE.CylinderGeometry(HOLE.r, HOLE.r, 0.14, 32),
-  new THREE.MeshBasicMaterial({ color:0x000000 })
+  new THREE.MeshBasicMaterial({ color:0x0a0a10 })
 );
 holeMesh.position.set(HOLE.x, 0.02, HOLE.z);
 machine.add(holeMesh);
-const holeRim = new THREE.Mesh(
-  new THREE.TorusGeometry(HOLE.r, 0.045, 12, 40),
-  new THREE.MeshStandardMaterial({ color:0xffd24a, roughness:0.3, metalness:0.6, emissive:0x553300 })
-);
+const holeRim = new THREE.Mesh(new THREE.TorusGeometry(HOLE.r, 0.04, 12, 40), chromeMat);
 holeRim.rotation.x = Math.PI/2;
 holeRim.position.set(HOLE.x, 0.06, HOLE.z);
 machine.add(holeRim);
+// low acrylic fence around the chute
+[[0,-0.62,1.3,0],[0,0.62,1.3,0],[-0.62,0,0.06,1],[0.62,0,0.06,1]].forEach(([dx,dz,w,rot])=>{
+  const g = rot ? new THREE.BoxGeometry(0.05, 0.36, 1.3) : new THREE.BoxGeometry(w, 0.36, 0.05);
+  const m = new THREE.Mesh(g, glassMat);
+  m.position.set(HOLE.x+dx, 0.18, HOLE.z+dz);
+  machine.add(m);
+});
 
+// glass walls
 function wall(w, h, x, z, ry) {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), glassMat);
   m.position.set(x, h/2, z);
@@ -233,53 +277,121 @@ wall(CAB_W, H,  0,  CAB_D/2+0.02, 0);
 wall(CAB_W, H,  0, -CAB_D/2-0.02, 0);
 wall(CAB_D, H, -CAB_W/2-0.02, 0, Math.PI/2);
 wall(CAB_D, H,  CAB_W/2+0.02, 0, Math.PI/2);
+
+// corner pillars (white) + pink neon tubes on the front pair
 [[-CAB_W/2, -CAB_D/2],[CAB_W/2, -CAB_D/2],[-CAB_W/2, CAB_D/2],[CAB_W/2, CAB_D/2]].forEach(([x,z])=>{
-  const p = new THREE.Mesh(new THREE.BoxGeometry(0.16, H, 0.16), darkMat);
+  const p = new THREE.Mesh(new THREE.BoxGeometry(0.18, H, 0.18), whiteGloss);
   p.position.set(x, H/2, z);
   p.castShadow = true;
   machine.add(p);
 });
-const topLid = new THREE.Mesh(new THREE.BoxGeometry(CAB_W+0.5, 0.5, CAB_D+0.5), redMat);
-topLid.position.y = H + 0.25;
+[-1, 1].forEach(s => {
+  const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, H+1.1, 12), pinkNeonMat);
+  tube.position.set(s*(CAB_W/2+0.28), (H+1.1)/2 - 1.05, CAB_D/2+0.18);
+  machine.add(tube);
+});
+
+// top lid + glowing pink marquee panel (no text yet — logo slot)
+const topLid = new THREE.Mesh(new THREE.BoxGeometry(CAB_W+0.5, 0.42, CAB_D+0.5), whiteGloss);
+topLid.position.y = H + 0.21;
 topLid.castShadow = true;
 machine.add(topLid);
-
-// marquee
-const mcv = document.createElement('canvas');
-mcv.width = 1280; mcv.height = 150;
-const mctx = mcv.getContext('2d');
-(function drawMarquee(){
-  mctx.fillStyle = '#111';
-  mctx.fillRect(0,0,1280,150);
-  const s = 19;
-  for (let i=0;i<1280/s;i++) for (let j=0;j<2;j++) {
-    if ((i+j)%2===0) { mctx.fillStyle='#fff'; mctx.fillRect(i*s, j===0?0:150-s, s, s); }
-  }
-  mctx.fillStyle = '#ffd24a';
-  mctx.font = '900 68px sans-serif';
-  mctx.textAlign = 'center'; mctx.textBaseline = 'middle';
-  mctx.fillText('SUPER RACE 뽑기', 640, 77);
-})();
-const marqueeBox = new THREE.Mesh(new THREE.BoxGeometry(CAB_W+0.5, 0.78, CAB_D+0.46), darkMat);
-marqueeBox.position.y = H + 0.62;
+const marqueeBox = new THREE.Mesh(new THREE.BoxGeometry(CAB_W+0.5, 0.85, CAB_D+0.46), silverMat);
+marqueeBox.position.y = H + 0.84;
 machine.add(marqueeBox);
-const marquee = new THREE.Mesh(
-  new THREE.PlaneGeometry(CAB_W, 0.7),
-  new THREE.MeshBasicMaterial({ map:new THREE.CanvasTexture(mcv) })
-);
-marquee.position.set(0, H + 0.62, CAB_D/2 + 0.26);
+const marquee = new THREE.Mesh(new THREE.PlaneGeometry(CAB_W-0.15, 0.62), pinkPanelMat);
+marquee.position.set(0, H + 0.84, CAB_D/2 + 0.26);
 machine.add(marquee);
 
-// ---------- claw rig factory ----------
-const fingerMat = new THREE.MeshStandardMaterial({ color:0xccccd6, metalness:0.8, roughness:0.3 });
+// ceiling & back panels keep the interior bright (reference has a lit box)
+const ceilPanel = new THREE.Mesh(new THREE.BoxGeometry(CAB_W, 0.04, CAB_D),
+  new THREE.MeshStandardMaterial({ color:0xf4f6fa, emissive:0xdfeaff, emissiveIntensity:0.16, roughness:0.6 }));
+ceilPanel.position.y = H - 0.01;
+machine.add(ceilPanel);
+const backPanel = new THREE.Mesh(new THREE.PlaneGeometry(CAB_W, H),
+  new THREE.MeshStandardMaterial({ color:0xd8cfe0, emissive:0xb9a8c8, emissiveIntensity:0.10, roughness:0.35, metalness:0.35 }));
+backPanel.position.set(0, H/2, -CAB_D/2 + 0.02);
+machine.add(backPanel);
+
+// interior ceiling LED strips (two rows, cool white)
+for (let i=0;i<4;i++) for (let j=0;j<2;j++) {
+  const led = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.03, 0.14), ledWhiteMat);
+  led.position.set(-2.3 + i*1.55, H - 0.05, j===0 ? -0.85 : 0.85);
+  machine.add(led);
+}
+
+// front control deck: joystick, buttons, LED counters, PRIZE OUT plate
+const deck = new THREE.Group();
+machine.add(deck);
+const deckBody = new THREE.Mesh(new THREE.BoxGeometry(CAB_W*0.92, 0.78, 1.35), whiteGloss);
+deckBody.position.set(0, -0.4, CAB_D/2 + 0.82);
+deckBody.castShadow = deckBody.receiveShadow = true;
+deck.add(deckBody);
+const deckTop = new THREE.Mesh(new THREE.BoxGeometry(CAB_W*0.92, 0.05, 1.35),
+  new THREE.MeshStandardMaterial({ color:0xffaee6, emissive:0xff3fd1, emissiveIntensity:0.28, roughness:0.35, metalness:0.2 }));
+deckTop.position.set(0, -0.02, CAB_D/2 + 0.82);
+deck.add(deckTop);
+const DECK_Y = 0.005, DECK_Z = CAB_D/2 + 0.82;
+// joystick
+const joyBase = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.2, 0.05, 20), darkMat);
+joyBase.position.set(-1.15, DECK_Y+0.02, DECK_Z);
+deck.add(joyBase);
+const joyStem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.24, 10), chromeMat);
+joyStem.position.set(-1.15, DECK_Y+0.15, DECK_Z);
+deck.add(joyStem);
+const joyBall = new THREE.Mesh(new THREE.SphereGeometry(0.09, 18, 14),
+  new THREE.MeshStandardMaterial({ color:0xff7ad9, emissive:0xff2fc8, emissiveIntensity:1.5, roughness:0.25 }));
+joyBall.position.set(-1.15, DECK_Y+0.3, DECK_Z);
+deck.add(joyBall);
+// buttons
+const btnWhite = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.055, 20), ledWhiteMat);
+btnWhite.position.set(0.45, DECK_Y+0.02, DECK_Z);
+deck.add(btnWhite);
+const btnPink = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.055, 20), pinkNeonMat);
+btnPink.position.set(1.05, DECK_Y+0.02, DECK_Z);
+deck.add(btnPink);
+// LED counters (canvas-drawn red digits)
+(function counters(){
+  const cv = document.createElement('canvas');
+  cv.width = 512; cv.height = 128;
+  const c = cv.getContext('2d');
+  c.fillStyle = '#0c0c10'; c.fillRect(0,0,512,128);
+  c.strokeStyle = '#2c2c34'; c.lineWidth = 6; c.strokeRect(6,6,230,116); c.strokeRect(276,6,230,116);
+  c.fillStyle = '#ff2d2d';
+  c.font = '900 84px monospace';
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText('00', 121, 72); c.fillText('00', 391, 72);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.24),
+    new THREE.MeshBasicMaterial({ map:new THREE.CanvasTexture(cv) }));
+  m.position.set(-2.35, DECK_Y+0.03, DECK_Z);
+  m.rotation.x = -Math.PI/2;
+  deck.add(m);
+})();
+// PRIZE OUT plate
+(function prizeOut(){
+  const cv = document.createElement('canvas');
+  cv.width = 512; cv.height = 128;
+  const c = cv.getContext('2d');
+  c.fillStyle = '#15151c'; c.fillRect(0,0,512,128);
+  c.fillStyle = '#f4f2f5';
+  c.font = '900 62px sans-serif';
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText('PRIZE OUT', 256, 68);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.2),
+    new THREE.MeshBasicMaterial({ map:new THREE.CanvasTexture(cv) }));
+  m.position.set(2.35, DECK_Y+0.03, DECK_Z);
+  m.rotation.x = -Math.PI/2;
+  deck.add(m);
+})();
+
+// ---------- claw rig factory (chrome 4-hook claw, coiled cable) ----------
 function makeNameSprite(name, colorCss) {
   const cv = document.createElement('canvas');
   cv.width = 320; cv.height = 84;
   const c = cv.getContext('2d');
   c.fillStyle = colorCss;
-  const r = 20;
   c.beginPath();
-  c.roundRect(4, 4, 312, 76, r);
+  c.roundRect(4, 4, 312, 76, 20);
   c.fill();
   c.strokeStyle = 'rgba(255,255,255,.85)';
   c.lineWidth = 5;
@@ -292,47 +404,85 @@ function makeNameSprite(name, colorCss) {
   sp.scale.set(0.82, 0.22, 1);
   return sp;
 }
+// curved hook profile, +x = radially outward from the claw axis
+const HOOK_CURVE = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(0.05, 0.02, 0),
+  new THREE.Vector3(0.16, -0.20, 0),
+  new THREE.Vector3(0.15, -0.40, 0),
+  new THREE.Vector3(0.03, -0.56, 0),
+  new THREE.Vector3(-0.03, -0.60, 0),
+]);
+const HOOK_GEO = new THREE.TubeGeometry(HOOK_CURVE, 20, 0.026, 8);
+const TIP_POS = HOOK_CURVE.getPoint(1);
+
 function createClawRig(colorHex, name) {
   const colorCss = '#' + colorHex.toString(16).padStart(6,'0');
-  const tint = new THREE.MeshStandardMaterial({ color:colorHex, roughness:0.4, metalness:0.4 });
+  const accentMat = new THREE.MeshStandardMaterial({ color:colorHex, emissive:colorHex, emissiveIntensity:0.55, roughness:0.35, metalness:0.3 });
   const root = new THREE.Group();
   scene.add(root);
 
-  const trolley = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.2, 0.46), tint);
+  // trolley: silver block + player-color band
+  const trolley = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.18, 0.5), silverMat);
   trolley.castShadow = true;
   trolley.position.y = RAIL_Y + 0.16;
   root.add(trolley);
+  const trolleyBand = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.05, 0.52), accentMat);
+  trolleyBand.position.y = RAIL_Y + 0.06;
+  root.add(trolleyBand);
 
+  // thin straight cable + coiled section that stretches as the claw drops
   const cable = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.024, 0.024, 1, 8),
-    new THREE.MeshStandardMaterial({ color:0x888899, metalness:0.7, roughness:0.4 })
+    new THREE.CylinderGeometry(0.016, 0.016, 1, 8),
+    new THREE.MeshStandardMaterial({ color:0x15151a, roughness:0.7 })
   );
   root.add(cable);
+  const coil = new THREE.Group();
+  const coilMat = new THREE.MeshStandardMaterial({ color:0x111116, roughness:0.55 });
+  const COIL_N = 8, COIL_LEN = 0.78;
+  for (let i=0;i<COIL_N;i++) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.014, 8, 18), coilMat);
+    ring.rotation.x = Math.PI/2;
+    ring.position.y = -0.05 - i*(COIL_LEN/COIL_N);
+    coil.add(ring);
+  }
+  coil.position.y = RAIL_Y + 0.02;
+  root.add(coil);
 
+  // chrome head: cylindrical housing + tapered cap + player-color ring
   const head = new THREE.Group();
   root.add(head);
-  const headBall = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 16), tint);
-  headBall.castShadow = true;
-  head.add(headBall);
+  const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.13, 0.26, 20), chromeMat);
+  housing.castShadow = true;
+  head.add(housing);
+  const capTop = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.12, 0.09, 20), chromeMat);
+  capTop.position.y = 0.17;
+  head.add(capTop);
+  const capBot = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.06, 0.1, 20), chromeMat);
+  capBot.position.y = -0.18;
+  head.add(capBot);
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.128, 0.128, 0.05, 20), accentMat);
+  band.position.y = 0.09;
+  head.add(band);
 
-  const fingers = [];
-  for (let i=0;i<3;i++) {
+  // four curved chrome hooks
+  const hooks = [];
+  for (let i=0;i<4;i++) {
     const pivot = new THREE.Group();
-    pivot.rotation.y = i * Math.PI*2/3;
-    const seg1 = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.45, 0.065), fingerMat);
-    seg1.position.set(0.13, -0.2, 0);
-    seg1.castShadow = true;
-    const seg2 = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.38, 0.055), fingerMat);
-    seg2.position.set(0, -0.36, 0);
-    seg2.rotation.z = 0.55;
-    seg1.add(seg2);
-    pivot.add(seg1);
+    pivot.rotation.y = i * Math.PI/2;
+    pivot.position.y = -0.2;
+    const hook = new THREE.Group();
+    const tube = new THREE.Mesh(HOOK_GEO, chromeMat);
+    tube.castShadow = true;
+    hook.add(tube);
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.028, 10, 8), chromeMat);
+    tip.position.copy(TIP_POS);
+    hook.add(tip);
+    pivot.add(hook);
     head.add(pivot);
-    fingers.push(seg1);
+    hooks.push(hook);
   }
 
-  const railBar = new THREE.Mesh(new THREE.BoxGeometry(CAB_W - 0.2, 0.08, 0.1), tint.clone());
-  railBar.material.color.multiplyScalar(0.55);
+  const railBar = new THREE.Mesh(new THREE.BoxGeometry(CAB_W - 0.2, 0.07, 0.09), silverMat);
   railBar.position.y = RAIL_Y + 0.16;
   scene.add(railBar);
 
@@ -343,14 +493,17 @@ function createClawRig(colorHex, name) {
   }
 
   return {
-    root, cable, head, railBar, sprite,
-    setFingers(t) { fingers.forEach(f => { f.rotation.z = -0.15 - t*0.75; }); },
+    root, cable, head, railBar, sprite, coil,
+    // t: 0 = closed (hooks hang, tips converge), 1 = open (hooks flare out)
+    setFingers(t) { hooks.forEach(h => { h.rotation.z = t*0.5; }); },
     apply(x, y, z, fingerT) {
       root.position.set(x, 0, z);
       head.position.y = y;
       const len = Math.max((RAIL_Y + 0.05) - y, 0.01);
       cable.scale.y = len;
       cable.position.y = y + len/2;
+      // coil compresses when the claw is up, stretches as it descends
+      coil.scale.y = THREE.MathUtils.clamp(len / 1.1, 0.12, 1);
       railBar.position.z = z;
       this.setFingers(fingerT);
       if (sprite) sprite.position.set(x, RAIL_Y + 0.44, z);
@@ -363,7 +516,7 @@ function createClawRig(colorHex, name) {
 }
 
 // ---------- prizes ----------
-const CAPSULE_COLORS = [0xe10600, 0xffd24a, 0x2e9cff, 0x2ee56b, 0xff7ab8, 0xff8c1a];
+const CAPSULE_COLORS = [0xff5fce, 0x9d7bff, 0x5fc9ff, 0xffd24a, 0xff8fb3, 0x7dffd4];
 const prizes = [];
 function makePrize(x, y, z) {
   const g = new THREE.Group();
@@ -685,7 +838,7 @@ function bigMsg(main, sub) {
   setTimeout(() => el.classList.remove('show'), 3200);
 }
 function confetti() {
-  const colors = ['#e10600','#ffd24a','#2e9cff','#2ee56b','#ff7ab8','#fff'];
+  const colors = ['#ff3fd1','#ffd24a','#5fc9ff','#7dffd4','#ff8fb3','#fff'];
   for (let i=0;i<90;i++) {
     const c = document.createElement('div');
     c.className = 'confetti';
@@ -898,7 +1051,7 @@ touchGrabBtn.addEventListener('click', () => {
 });
 
 // ---------- attract claw (shown when nobody is playing) ----------
-const attract = { rig: createClawRig(0x777788, ''), t: 0 };
+const attract = { rig: createClawRig(0x9a9aa8, ''), t: 0 };
 function updateAttract(dt) {
   const show = players.size === 0;
   attract.rig.root.visible = attract.rig.railBar.visible = show;
@@ -920,7 +1073,7 @@ function loop(now) {
   updateAttract(dt);
   physicsStep(dt);
   camera.position.x = Math.sin(now/1000*0.1)*0.4;
-  camera.lookAt(0, 1.85, 0);
+  camera.lookAt(0, 1.95, 0);
   renderer.render(scene, camera);
 }
 requestAnimationFrame(loop);
