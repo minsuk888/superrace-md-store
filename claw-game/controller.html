@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>SUPER RACE 뽑기 컨트롤러</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+  html,body { width:100%; height:100%; overflow:hidden; touch-action:none;
+    font-family:'Segoe UI','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+    background:radial-gradient(120% 100% at 50% 0%, #a2aaf2 0%, #7d86e0 70%); color:#fff; }
+  #app { height:100%; display:flex; flex-direction:column; align-items:center;
+    padding:max(18px, env(safe-area-inset-top)) 20px max(26px, env(safe-area-inset-bottom)); }
+
+  header { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+  header .flag { width:30px; height:30px; border-radius:6px; border:2px solid #ff3fd1;
+    background:repeating-conic-gradient(#111 0% 25%, #fff 0% 50%) 0 0/50% 50%; }
+  header h1 { font-size:18px; font-weight:800; }
+  header h1 span { color:#ffd7ea; }
+
+  #statebar { margin:4px 0 8px; padding:8px 20px; border-radius:999px; font-size:14px; font-weight:600;
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14); transition:all .3s; text-align:center; }
+  #statebar.good { background:rgba(46,229,107,.15); border-color:#2ee56b; color:#aef5c8; }
+  #statebar.warn { background:rgba(255,210,74,.12); border-color:#ffd24a; color:#ffe9a8; }
+  #statebar.bad  { background:rgba(225,6,0,.15); border-color:#ff5f5f; color:#ffb3b0; }
+
+  #joywrap { flex:1; display:flex; align-items:center; justify-content:center; width:100%; }
+  #joybase { position:relative; width:min(62vw, 270px); height:min(62vw, 270px); border-radius:50%;
+    background:radial-gradient(circle at 50% 42%, #23233a, #14141f 75%);
+    border:2px solid rgba(255,255,255,.14);
+    box-shadow:inset 0 8px 26px rgba(0,0,0,.6), 0 4px 20px rgba(0,0,0,.4); }
+  #joybase .arrow { position:absolute; font-size:20px; color:rgba(255,255,255,.25); }
+  .arrow.up    { top:10px;   left:50%; transform:translateX(-50%); }
+  .arrow.down  { bottom:10px;left:50%; transform:translateX(-50%); }
+  .arrow.left  { left:12px;  top:50%;  transform:translateY(-50%); }
+  .arrow.right { right:12px; top:50%;  transform:translateY(-50%); }
+  #knob { position:absolute; width:38%; height:38%; left:31%; top:31%; border-radius:50%;
+    background:linear-gradient(160deg, #ff5fce, #b00b8a);
+    border:3px solid rgba(255,255,255,.5);
+    box-shadow:0 6px 18px rgba(0,0,0,.5), inset 0 3px 6px rgba(255,255,255,.35); }
+
+  #grabbtn { width:min(70vw, 300px); height:76px; border:none; border-radius:20px;
+    font-size:24px; font-weight:900; letter-spacing:2px; color:#fff; cursor:pointer;
+    background:linear-gradient(180deg, #ff7ae0, #d81fae);
+    box-shadow:0 8px 0 #6d0a58, 0 12px 24px rgba(216,31,174,.4);
+    transition:transform .08s, box-shadow .08s; }
+  #grabbtn:active, #grabbtn.pressed { transform:translateY(6px); box-shadow:0 2px 0 #6d0a58; }
+  #grabbtn:disabled { filter:grayscale(.8) brightness(.6); box-shadow:0 8px 0 #333; }
+
+  footer { margin-top:14px; font-size:11px; color:rgba(255,255,255,.6); letter-spacing:1px; }
+
+  /* ---------- name gate ---------- */
+  #gate { position:fixed; inset:0; z-index:60; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:18px; padding:30px;
+    background:radial-gradient(120% 100% at 50% 0%, #a2aaf2 0%, #7d86e0 70%); }
+  #gate .flag { width:54px; height:54px; border-radius:10px; border:3px solid #ff3fd1;
+    background:repeating-conic-gradient(#111 0% 25%, #fff 0% 50%) 0 0/50% 50%; }
+  #gate h2 { font-size:22px; font-weight:800; text-align:center; line-height:1.4; }
+  #gate h2 span { color:#ffd7ea; }
+  #gate p { font-size:13px; color:rgba(255,255,255,.85); text-align:center; }
+  #nameinput { width:min(80vw, 300px); padding:15px 18px; font-size:19px; font-weight:700;
+    border-radius:14px; border:2px solid rgba(255,255,255,.2); outline:none; text-align:center;
+    background:rgba(255,255,255,.07); color:#fff; user-select:text; -webkit-user-select:text; }
+  #nameinput:focus { border-color:#ff3fd1; }
+  #joinbtn { width:min(80vw, 300px); padding:16px; font-size:19px; font-weight:900; letter-spacing:1px;
+    border:none; border-radius:14px; color:#fff; cursor:pointer;
+    background:linear-gradient(180deg, #ff5fce, #b00b8a);
+    box-shadow:0 6px 0 #6d0a58; }
+  #joinbtn:active { transform:translateY(4px); box-shadow:0 2px 0 #6d0a58; }
+  #joinbtn:disabled { filter:grayscale(.7) brightness(.6); }
+
+  /* ---------- prize ticket ---------- */
+  #ticket { position:fixed; inset:0; z-index:70; display:none; flex-direction:column;
+    align-items:center; justify-content:center; gap:10px; padding:26px;
+    background:rgba(5,5,12,.96); text-align:center; }
+  #ticket.show { display:flex; }
+  #ticket .card { width:min(88vw, 350px); background:linear-gradient(170deg, #fffef5, #ffe9b8);
+    color:#1a1208; border-radius:20px; padding:26px 22px;
+    box-shadow:0 0 60px rgba(255,210,74,.45); border:3px dashed #c9a23f; }
+  #ticket .card .head { font-size:13px; letter-spacing:3px; color:#8a6d1f; font-weight:800; }
+  #ticket .card .emoji { font-size:62px; margin:10px 0 4px; }
+  #ticket .card .prize { font-size:24px; font-weight:900; }
+  #ticket .card .who { margin-top:6px; font-size:15px; }
+  #ticket .card .who b { color:#b00500; }
+  #ticket .card .code { margin-top:14px; font-family:monospace; font-size:30px; font-weight:800;
+    letter-spacing:3px; background:#1a1208; color:#2ee56b; border-radius:10px; padding:8px 0; }
+  #ticket .card .time { margin-top:8px; font-size:11px; color:#8a6d1f; }
+  #ticket .notice { font-size:14px; color:#ffd24a; font-weight:700; line-height:1.5; }
+  #ticket .count { font-size:12px; color:#9aa; }
+  #ticket .closebtn { margin-top:6px; padding:12px 34px; font-size:15px; font-weight:700;
+    border:1px solid rgba(255,255,255,.3); border-radius:999px; background:none; color:#fff; cursor:pointer; }
+
+  #prizebadge { position:fixed; right:14px; top:max(14px, env(safe-area-inset-top)); z-index:55;
+    display:none; padding:10px 16px; border-radius:999px; font-size:14px; font-weight:800;
+    background:linear-gradient(180deg, #ffd24a, #ff9d1a); color:#3a2500; border:none;
+    box-shadow:0 4px 16px rgba(255,157,26,.5); cursor:pointer; }
+  #prizebadge.show { display:block; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="flag"></div>
+    <h1>SUPER <span>RACE</span> 뽑기 컨트롤러</h1>
+  </header>
+  <div id="statebar">이름을 입력해 주세요</div>
+  <div id="joywrap">
+    <div id="joybase">
+      <span class="arrow up">▲</span><span class="arrow down">▼</span>
+      <span class="arrow left">◀</span><span class="arrow right">▶</span>
+      <div id="knob"></div>
+    </div>
+  </div>
+  <button id="grabbtn" disabled>🕹️ 잡기!</button>
+  <footer>SUPER RACE MD STORE · <span id="netdbg">대기</span></footer>
+</div>
+
+<!-- name entry -->
+<div id="gate">
+  <div class="flag"></div>
+  <h2>SUPER <span>RACE</span> 뽑기<br>참가하기</h2>
+  <p>화면 속 집게에 표시될 이름을 입력하세요 (최대 8자)</p>
+  <input id="nameinput" maxlength="8" placeholder="이름 입력" autocomplete="off" enterkeyhint="go">
+  <button id="joinbtn">🏁 입장하기</button>
+</div>
+
+<!-- prize ticket -->
+<div id="ticket">
+  <div class="card">
+    <div class="head">PRIZE TICKET · 경품 교환권</div>
+    <div class="emoji" id="tk-emoji">🎁</div>
+    <div class="prize" id="tk-prize">-</div>
+    <div class="who">당첨자 <b id="tk-name">-</b></div>
+    <div class="code" id="tk-code">-</div>
+    <div class="time" id="tk-time"></div>
+  </div>
+  <div class="notice">📢 이 화면을 현장 관리자에게 보여주시면<br>경품으로 교환해 드립니다</div>
+  <div class="count" id="tk-count"></div>
+  <button class="closebtn" id="tk-close">닫고 계속 뽑기</button>
+</div>
+<button id="prizebadge">🎁 내 경품 보기</button>
+
+<script src="lib/mqtt.min.js"></script>
+<script>
+'use strict';
+const roomId = new URLSearchParams(location.search).get('r');
+const stateBar = document.getElementById('statebar');
+const grabBtn = document.getElementById('grabbtn');
+const joyBase = document.getElementById('joybase');
+const knob = document.getElementById('knob');
+const gate = document.getElementById('gate');
+const nameInput = document.getElementById('nameinput');
+const joinBtn = document.getElementById('joinbtn');
+const ticket = document.getElementById('ticket');
+const prizeBadge = document.getElementById('prizebadge');
+
+function setState(msg, cls) {
+  stateBar.textContent = msg;
+  stateBar.className = '';
+  if (cls) stateBar.classList.add(cls);
+}
+function vibrate(pat) { if (navigator.vibrate) try { navigator.vibrate(pat); } catch(e){} }
+
+if (!roomId) {
+  gate.querySelector('p').textContent = '잘못된 접속입니다. 화면의 QR을 다시 스캔해 주세요.';
+  joinBtn.disabled = true;
+  nameInput.disabled = true;
+}
+
+// ---------- name gate ----------
+let myName = '';
+nameInput.value = localStorage.getItem('srclaw-name') || '';
+function join() {
+  const n = nameInput.value.trim().slice(0, 8);
+  if (!n) { nameInput.focus(); return; }
+  myName = n;
+  localStorage.setItem('srclaw-name', n);
+  gate.style.display = 'none';
+  connect();
+}
+joinBtn.addEventListener('click', join);
+nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
+
+// ---------- prize tickets ----------
+const myPrizes = [];
+function showTicket(i) {
+  const t = myPrizes[i];
+  if (!t) return;
+  document.getElementById('tk-emoji').textContent = t.prize.emoji;
+  document.getElementById('tk-prize').textContent = t.prize.name;
+  document.getElementById('tk-name').textContent = t.player;
+  document.getElementById('tk-code').textContent = t.code;
+  document.getElementById('tk-time').textContent = t.time;
+  document.getElementById('tk-count').textContent =
+    myPrizes.length > 1 ? `내 경품 ${i+1} / ${myPrizes.length} — 카드를 탭하면 다음 경품` : '';
+  ticket.dataset.idx = i;
+  ticket.classList.add('show');
+}
+ticket.querySelector('.card').addEventListener('pointerdown', () => {
+  if (myPrizes.length < 2) return;
+  showTicket((Number(ticket.dataset.idx) + 1) % myPrizes.length);
+});
+document.getElementById('tk-close').addEventListener('click', () => {
+  ticket.classList.remove('show');
+  if (myPrizes.length) prizeBadge.classList.add('show');
+});
+prizeBadge.addEventListener('click', () => showTicket(myPrizes.length - 1));
+
+// ---------- networking (MQTT over WebSocket relay) ----------
+// All traffic is relayed through a public MQTT broker over wss — no WebRTC,
+// so LTE phones connect as reliably as the screen's WiFi. ?b= overrides the
+// broker (the screen puts it in the QR when it uses an override itself).
+const DEFAULT_BROKERS = [
+  'wss://broker.emqx.io:8084/mqtt',
+  'wss://broker.hivemq.com:8884/mqtt',
+  'wss://test.mosquitto.org:8081',
+];
+const brokerOverride = new URLSearchParams(location.search).get('b');
+// QR broker first, then the shared default rotation (same order as the screen)
+const BROKERS = brokerOverride ? [brokerOverride, ...DEFAULT_BROKERS] : DEFAULT_BROKERS;
+const MY_ID = 'c' + Math.random().toString(36).slice(2, 10);
+const TOPIC = {
+  pub: `srclaw/${roomId}/c2s/${MY_ID}`,
+  sub: `srclaw/${roomId}/s2c/${MY_ID}`,
+  presence: `srclaw/${roomId}/screen`,
+};
+const netDbg = document.getElementById('netdbg');
+let mq = null, brokerIdx = 0, role = null, closing = false, consecFails = 0;
+let joined = false, screenBoot = null, lastScreenSign = 0, hbTimer = null, findTimer = null;
+
+function send(obj, force) {
+  if (!mq || (!force && role !== 'active')) return;
+  try { mq.publish(TOPIC.pub, JSON.stringify(obj), { qos: (obj.t === 'joy' && !obj.end) || obj.t === 'hb' ? 0 : 1 }); } catch(e){}
+}
+function sendHello() {
+  joined = false;
+  send({ t:'hello', name: myName }, true);
+}
+function connect() {
+  const url = BROKERS[brokerIdx % BROKERS.length];
+  setState('중계 서버 연결 중…', null);
+  netDbg.textContent = '서버 접속 중';
+  const client = mqtt.connect(url, {
+    keepalive: 20, clean: true, reconnectPeriod: 0, connectTimeout: 7000,
+  });
+  let wasUp = false;
+  client.on('connect', () => {
+    wasUp = true;
+    consecFails = 0;
+    mq = client;
+    netDbg.textContent = '서버 ✓';
+    setState('게임 화면 찾는 중…', null);
+    vibrate(30);
+    client.subscribe([TOPIC.sub, TOPIC.presence], { qos: 1 });
+    sendHello();
+    setTimeout(() => { if (!joined && mq === client) sendHello(); }, 1500);
+    clearInterval(hbTimer);
+    // until the screen confirms our role, keep re-sending hello (covers the
+    // race where we reconnect before the screen has re-subscribed)
+    hbTimer = setInterval(() => { if (joined) send({ t:'hb' }, true); else sendHello(); }, 5000);
+    // if the screen never answers, tell the user what to check
+    clearTimeout(findTimer);
+    findTimer = setTimeout(() => {
+      if (!joined) setState('게임 화면의 응답이 없어요 — 화면이 켜져 있고 "서버 연결됨 ✓"인지 확인해 주세요. 화면을 새로고침했다면 QR을 다시 스캔하세요.', 'warn');
+    }, 10000);
+  });
+  client.on('message', (topic, payload, packet) => {
+    if (topic === TOPIC.presence) {
+      if (!payload || !payload.length) return;          // cleared retained message
+      let d; try { d = JSON.parse(payload.toString()); } catch(e) { return; }
+      if (!packet.retain) lastScreenSign = Date.now();  // live heartbeat only
+      if (screenBoot && d.boot && d.boot !== screenBoot) sendHello();  // screen restarted
+      if (d.boot) screenBoot = d.boot;
+      return;
+    }
+    if (topic !== TOPIC.sub) return;
+    let d; try { d = JSON.parse(payload.toString()); } catch(e) { return; }
+    lastScreenSign = Date.now();
+    onData(d);
+  });
+  client.on('error', () => { try { client.end(true); } catch(e){} });
+  client.on('close', () => {
+    if (closing) return;
+    clearInterval(hbTimer);
+    clearTimeout(findTimer);
+    if (mq === client) mq = null;
+    // move to the next broker if this one won't connect, or keeps dying
+    if (!wasUp || ++consecFails >= 3) { brokerIdx++; consecFails = 0; }
+    role = null;
+    joined = false;               // must re-hello after reconnecting
+    grabBtn.disabled = true;
+    setState('연결이 끊겼어요 — 다시 연결 중…', 'bad');
+    netDbg.textContent = '재접속 중';
+    setTimeout(connect, 2000);
+  });
+}
+// if the screen goes silent for 20s while we're joined, warn (it heartbeats every 5s)
+setInterval(() => {
+  if (!joined || !lastScreenSign) return;
+  if (Date.now() - lastScreenSign > 20000) {
+    joined = false;
+    role = null;
+    grabBtn.disabled = true;
+    setState('게임 화면과 연결이 끊긴 것 같아요 — 화면 상태를 확인해 주세요', 'bad');
+  }
+}, 5000);
+function onData(d) {
+  if (!d || typeof d !== 'object') return;
+  if (d.t === 'rejoin') { sendHello(); return; }   // screen doesn't know us -> re-enter
+  if (d.t === 'role') {
+    role = d.v;
+    joined = true;
+    clearTimeout(findTimer);
+    netDbg.textContent = '서버 ✓ · 화면 ✓';
+    if (role === 'active') {
+      setState(`🎮 ${myName}님, 집게를 조종하세요!`, 'good');
+      grabBtn.disabled = false;
+      if (d.color) knob.style.background = `linear-gradient(160deg, ${d.color}, #222)`;
+      vibrate([40,60,40]);
+    } else {
+      setState(`자리가 꽉 찼어요 — 대기 ${d.pos || ''}번째`, 'warn');
+      grabBtn.disabled = true;
+    }
+  } else if (d.t === 'phase') {
+    if (d.v === 'grab') { setState('집게 작동 중…', 'warn'); grabBtn.disabled = true; }
+    else if (d.v === 'caught') { setState('잡았다! 배출구로 이동 중… 🤞', 'good'); vibrate(80); }
+    else if (d.v === 'miss') { setState('아쉽다! 다시 도전해 보세요', 'warn'); }
+    else if (d.v === 'slip') { setState('앗, 미끄러졌어요! 😭', 'bad'); vibrate(200); }
+    else if (d.v === 'play') { setState(`🎮 ${myName}님, 집게를 조종하세요!`, 'good'); grabBtn.disabled = (role !== 'active'); }
+  } else if (d.t === 'result' && d.win) {
+    vibrate([100,50,100,50,300]);
+    myPrizes.push({
+      prize: d.prize, code: d.code, player: d.player || myName,
+      time: new Date().toLocaleString('ko-KR'),
+    });
+    showTicket(myPrizes.length - 1);
+    prizeBadge.classList.add('show');
+  }
+}
+
+// ---------- joystick ----------
+const joy = { x:0, y:0, active:false, pid:null };
+function joyRect() { return joyBase.getBoundingClientRect(); }
+function setKnob(nx, ny) {
+  const r = joyRect();
+  const max = r.width * 0.30;
+  knob.style.transform = `translate(${nx*max}px, ${ny*max}px)`;
+}
+joyBase.addEventListener('pointerdown', e => {
+  joy.active = true; joy.pid = e.pointerId;
+  joyBase.setPointerCapture(e.pointerId);
+  moveJoy(e);
+});
+joyBase.addEventListener('pointermove', e => { if (joy.active && e.pointerId === joy.pid) moveJoy(e); });
+function endJoy(e) {
+  if (e.pointerId !== joy.pid) return;
+  joy.active = false; joy.x = joy.y = 0;
+  setKnob(0, 0);
+  // the stop packet is the one that must not get lost: qos1 + a repeat
+  send({ t:'joy', x:0, y:0, end:1 });
+  setTimeout(() => { if (!joy.active) send({ t:'joy', x:0, y:0, end:1 }); }, 150);
+}
+joyBase.addEventListener('pointerup', endJoy);
+joyBase.addEventListener('pointercancel', endJoy);
+function moveJoy(e) {
+  const r = joyRect();
+  const cx = r.left + r.width/2, cy = r.top + r.height/2;
+  let nx = (e.clientX - cx) / (r.width*0.38);
+  let ny = (e.clientY - cy) / (r.height*0.38);
+  const len = Math.hypot(nx, ny);
+  if (len > 1) { nx /= len; ny /= len; }
+  joy.x = nx; joy.y = ny;
+  setKnob(nx, ny);
+}
+setInterval(() => { if (joy.active) send({ t:'joy', x:+joy.x.toFixed(2), y:+joy.y.toFixed(2) }); }, 50);
+
+// ---------- grab button ----------
+grabBtn.addEventListener('pointerdown', () => {
+  if (grabBtn.disabled) return;
+  grabBtn.classList.add('pressed');
+  vibrate(60);
+  send({ t:'grab' });
+});
+grabBtn.addEventListener('pointerup', () => grabBtn.classList.remove('pressed'));
+
+addEventListener('beforeunload', () => {
+  closing = true;
+  try { send({ t:'bye' }, true); } catch(e){}
+});
+</script>
+</body>
+</html>
