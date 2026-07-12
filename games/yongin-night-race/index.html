@@ -94,6 +94,13 @@
     font-size:clamp(13px,2vw,18px);color:var(--gold);text-shadow:0 2px 12px #000;white-space:nowrap}
   #wrongway{position:absolute;top:18%;left:50%;transform:translateX(-50%);color:#ff5140;
     font-size:clamp(20px,4vw,36px);font-weight:900;display:none;text-shadow:0 0 24px rgba(255,40,20,.8)}
+  #brakeHint{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%);
+    color:#ff3d2e;font-weight:900;font-size:clamp(18px,3.6vw,30px);letter-spacing:.24em;
+    padding:6px 18px;border:2.5px solid rgba(255,61,46,.85);border-radius:10px;
+    opacity:0;transition:opacity .12s;pointer-events:none;
+    text-shadow:0 0 18px rgba(255,40,20,.9);background:rgba(30,6,4,.35)}
+  #brakeHint.on{opacity:1;animation:bhp .5s infinite}
+  @keyframes bhp{50%{transform:translate(-50%,-50%) scale(1.06)}}
   /* start lights */
   #lights{position:absolute;top:12%;left:50%;transform:translateX(-50%);display:none;gap:clamp(8px,1.6vw,14px)}
   #lights span{width:clamp(26px,5vw,46px);height:clamp(26px,5vw,46px);border-radius:50%;
@@ -179,6 +186,7 @@
     <div id="rpm"><div id="rpmFill"></div></div>
   </div>
   <div id="lights"><span></span><span></span><span></span><span></span><span></span></div>
+  <div id="brakeHint">BRAKE</div>
   <div id="msg"></div><div id="submsg"></div>
   <div id="sectorPop" class="mono"></div>
   <div id="toast"></div>
@@ -293,6 +301,7 @@
     <div class="btnrow" style="flex-direction:column">
       <button class="btn" id="btnResume">계속하기</button>
       <button class="btn cyan" id="btnFinish">🏁 세션 종료 · 결과 보기</button>
+      <button class="btn ghost" id="btnView">📷 시점: 3D 체이스</button>
       <button class="btn ghost" id="btnAuto">🚗 오토 액셀: 켜짐</button>
       <button class="btn ghost" id="btnSens">🎯 조향 감도: 보통</button>
       <button class="btn ghost" id="btnRestart">처음부터</button>
@@ -672,6 +681,14 @@ function pollPad(){
 
 /* ---------- car ---------- */
 const CAR_LEN=4.9,CAR_W=1.96;
+/* 기어/RPM 모델 — 계기판과 엔진음이 같은 모델 사용 */
+const GEARS=[0,34,62,95,130,168,215];                    // km/h 시프트 포인트
+function gearRpm(vKmh){
+  let g=1;while(g<6&&vKmh>=GEARS[g])g++;
+  const lo=GEARS[g-1],hi=GEARS[g];
+  const frac=clamp((vKmh-lo)/Math.max(hi-lo,1),0,1);
+  return {gear:g,rpm:.32+.66*frac};
+}
 const LIVERIES=[ // [body, stripe, glowName]
   ['#e8322a','#ffffff','RED STORM'],['#1268d8','#8fd0ff','BLUE ONE'],
   ['#f4f6f8','#e8322a','WHITE 46'],['#ffd23d','#111827','BUMBLE'],
@@ -719,17 +736,17 @@ class Car{
     const rate=steer!==0&&Math.sign(steer)!==Math.sign(this.steerCur||0)?12:(steer!==0?7:9);
     this.steerCur=(this.steerCur||0)+clamp(steer-(this.steerCur||0),-rate*dt,rate*dt);
     const sens=this.isPlayer?steerSens:1;
-    const steerMax=.60*sens/(1+v*.075);
+    const steerMax=.62*sens/(1+v*.07);
     const target=this.steerCur*steerMax*(hb?1.5:1);
     this.steerVis=lerp(this.steerVis,steer,clamp(dt*8,0,1));
-    const gripYaw=(this.onGrass?8.2:15.5*(sens>1?1.08:1))/Math.max(v,4);
+    const gripYaw=(this.onGrass?8.6:16.5*(sens>1?1.08:1))/Math.max(v,4);
     let yaw=clamp(target*v/2.62,-gripYaw,gripYaw);
     if(this.vF<0)yaw*=-1;
     this.ang+=yaw*dt*clamp(v/2,0,1);
     // 종방향
     const VMAX=track.VMAX*(this.isPlayer?1:this.skill);
     let acc=0;
-    if(throttle>0)acc+=throttle*(this.onGrass?4:9.6)*muAcc*Math.max(.25,1-v/VMAX);
+    if(throttle>0)acc+=throttle*(this.onGrass?4:10.2)*muAcc*Math.max(.2,1-Math.pow(v/VMAX,1.7));
     if(brake>0){ if(this.vF>1)acc-=brake*22; else if(this.vF>-8)acc-=brake*6; }
     acc-=slope*2.6;                                    // 오르막 감속/내리막 가속
     acc-=(this.onGrass?.09:.012)*this.vF*Math.abs(this.vF)*.02+Math.sign(this.vF)*(this.onGrass?2.4:.35);
@@ -889,7 +906,7 @@ const ui={
 /* =====================================================================
    RENDER
    ===================================================================== */
-const cvs=$('game'),ctx=cvs.getContext('2d',{alpha:false,desynchronized:true});
+const cvs=$('game'),ctx=cvs.getContext('2d',{alpha:true,desynchronized:true});
 let W=0,H=0,DPR=1;
 /* 동적 해상도: 프레임이 밀리면 내부 해상도를 낮춰 부드러움 우선 (저사양 폰 대응) */
 const DPR_MAX=Math.min(devicePixelRatio||1,2);
@@ -1074,9 +1091,9 @@ const R=(()=>{
       const p=pts[i],n=nrm[i];
       const x=p[0]-n[0]*(width[i]/2+9),y=p[1]-n[1]*(width[i]/2+9);
       g.save();g.translate(x,y);g.rotate(Math.atan2(track.tan[i][1],track.tan[i][0]));
-      g.fillStyle='#141b28';g.fillRect(-20,-3.4,40,7);
+      g.fillStyle='#12161f';g.fillRect(-20,-3.4,40,7);
       for(let r=0;r<3;r++)for(let cQ=0;cQ<13;cQ++){
-        g.fillStyle=rnd()>.94?'rgba(255,255,240,.9)':`hsla(${(seg*40+cQ*25)%360},45%,${38+r*8}%,.75)`;
+        g.fillStyle=rnd()>.95?'rgba(255,250,235,.8)':`hsla(${(seg*40+cQ*25)%360},26%,${19+r*5}%,.55)`;
         g.fillRect(-19+cQ*3,-2.9+r*2.2,2.2,1.5);
       }
       g.restore();
@@ -1134,16 +1151,23 @@ function skyCanvas(){
 function drawCar(c,alpha){
   ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.ang);
   if(alpha!=null)ctx.globalAlpha=alpha;
-  const L=CAR_LEN,Wd=CAR_W;
   // 헤드라이트 빔 (스프라이트)
   if(alpha==null){
     ctx.save();ctx.globalCompositeOperation='lighter';
-    ctx.drawImage(R.beamSpr,L/2-1,-Wd*2.6,37,Wd*5.2);
+    ctx.drawImage(R.beamSpr,CAR_LEN/2-1,-CAR_W*2.6,37,CAR_W*5.2);
     ctx.restore();
   }
-  // 그림자
+  carShadow();
+  carArt(c);
+  ctx.restore();
+}
+function carShadow(){
   ctx.fillStyle='rgba(0,0,0,.45)';
-  ctx.beginPath();ctx.ellipse(0,0,L/2+.35,Wd/2+.35,0,0,TAU);ctx.fill();
+  ctx.beginPath();ctx.ellipse(0,0,CAR_LEN/2+.35,CAR_W/2+.35,0,0,TAU);ctx.fill();
+}
+/* 차체 아트 (차 로컬 좌표계: +x 전방, 단위 m) — 2D/3D 공용 */
+function carArt(c){
+  const L=CAR_LEN,Wd=CAR_W;
   // 차체
   const r=.6;
   ctx.fillStyle=c.body;
@@ -1169,7 +1193,16 @@ function drawCar(c,alpha){
   ctx.fillRect(-L/2,-Wd/2+.2,.32,.55);ctx.fillRect(-L/2,Wd/2-.75,.32,.55);
   if(braking){ctx.save();ctx.globalCompositeOperation='lighter';
     ctx.fillStyle='rgba(255,40,20,.28)';ctx.beginPath();ctx.ellipse(-L/2-.8,0,1.6,Wd*.8,0,0,TAU);ctx.fill();ctx.restore();}
-  ctx.restore();
+}
+/* 관람차 아트 (로컬 좌표, 단위 m) — 2D/3D 공용 */
+function ferrisArt(tNow,r){
+  ctx.strokeStyle='rgba(120,150,210,.28)';ctx.lineWidth=1.4;
+  ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.stroke();
+  for(let i=0;i<10;i++){const a=tNow*.00012+i/10*TAU;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);ctx.stroke();
+    const hue=(i*36+tNow*.02)%360;
+    ctx.fillStyle=`hsla(${hue},90%,65%,.8)`;
+    ctx.beginPath();ctx.arc(Math.cos(a)*r,Math.sin(a)*r,2.1,0,TAU);ctx.fill();}
 }
 
 /* ?prof=1 구간 프로파일러 · ?skip=a,b 절제 테스트 */
@@ -1197,17 +1230,8 @@ function render(cam,world,tNow){
   pf('bgU',()=>ctx.drawImage(R.world,bx0,by0,bx1-bx0,by1-by0));
   // 에버랜드 방향 관람차 실루엣 (북서)
   pf('fer',()=>{
-  (function ferris(){
-    const fx0=bx0+52,fy0=by0+44,r=30;
-    ctx.save();ctx.translate(fx0,fy0);ctx.strokeStyle='rgba(120,150,210,.28)';ctx.lineWidth=1.4;
-    ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.stroke();
-    for(let i=0;i<10;i++){const a=tNow*.00012+i/10*TAU;
-      ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);ctx.stroke();
-      const hue=(i*36+tNow*.02)%360;
-      ctx.fillStyle=`hsla(${hue},90%,65%,.8)`;
-      ctx.beginPath();ctx.arc(Math.cos(a)*r,Math.sin(a)*r,2.1,0,TAU);ctx.fill();}
-    ctx.restore();
-  })();});
+    ctx.save();ctx.translate(bx0+52,by0+44);ferrisArt(tNow,30);ctx.restore();
+  });
   // 스키드 마크
   pf('skid',()=>ctx.drawImage(R.skid,R.minX,R.minY,R.skid.width/R.SK,R.skid.height/R.SK));
   // 트랙 라인 (얇은 벡터 오버레이 — 선명도 유지)
@@ -1377,6 +1401,261 @@ function renderGuideMap(){
 }
 
 /* =====================================================================
+   3D 체이스 뷰 — WebGL 원근 지면(모드7) + 2D 스프라이트 오버레이
+   물리·계측·AI는 동일, 카메라/렌더만 교체
+   ===================================================================== */
+const gl3d=(()=>{
+  const glc=document.createElement('canvas');
+  glc.id='gl';
+  glc.style.cssText='position:fixed;inset:0;width:100%;height:100%;display:block';
+  document.body.insertBefore(glc,cvs);
+  let gl=null;
+  try{gl=glc.getContext('webgl',{antialias:false,alpha:false,depth:false,stencil:false})
+        ||glc.getContext('experimental-webgl');}catch(e){}
+  if(!gl){glc.remove();return null;}
+  const VS='attribute vec2 a;varying vec2 v;void main(){v=a;gl_Position=vec4(a,0.,1.);}';
+  const FS=`precision highp float;
+varying vec2 v;
+uniform vec2 uHalf;uniform float uF;uniform vec3 uCam;
+uniform vec2 uYaw;uniform vec2 uPit;uniform vec4 uWR;uniform vec4 uSR;
+uniform sampler2D uWorld;uniform sampler2D uSkid;uniform float uT;
+void main(){
+  vec2 px=v*uHalf;
+  float u=px.x/uF, w=px.y/uF;
+  vec3 rd=vec3(uPit.x+w*uPit.y, u, -uPit.y+w*uPit.x);
+  vec2 wd=vec2(rd.x*uYaw.x-rd.y*uYaw.y, rd.x*uYaw.y+rd.y*uYaw.x);
+  if(rd.z>-0.004){
+    vec3 c=mix(vec3(0.055,0.075,0.125),vec3(0.012,0.022,0.05),clamp(max(w,0.0)*1.7,0.,1.));
+    c+=vec3(0.11,0.075,0.035)*exp(-abs(w)*20.0);
+    vec3 nd=normalize(vec3(wd,max(rd.z,0.001)));
+    vec2 sg=floor(vec2(atan(nd.y,nd.x)*120.0, nd.z*140.0));
+    float h=fract(sin(dot(sg,vec2(12.9898,78.233)))*43758.5453);
+    if(h>0.994&&w>0.04)c+=vec3(0.45)*(0.55+0.45*sin(uT*0.002+h*40.0));
+    gl_FragColor=vec4(c,1.);return;
+  }
+  float t=uCam.z/(-rd.z);
+  vec2 wp=uCam.xy+wd*t;
+  vec2 uv=(wp-uWR.xy)*uWR.zw;
+  vec3 g=vec3(0.030,0.070,0.048);
+  if(uv.x>0.&&uv.x<1.&&uv.y>0.&&uv.y<1.){
+    g=texture2D(uWorld,uv).rgb;
+    vec2 su=(wp-uSR.xy)*uSR.zw;
+    float sk=texture2D(uSkid,su).a;
+    g=mix(g,vec3(0.028,0.032,0.042),sk*0.85);
+  }
+  g=mix(g,vec3(0.035,0.05,0.085),smoothstep(200.0,480.0,t));
+  gl_FragColor=vec4(g,1.);
+}`;
+  function sh(type,src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);
+    if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){return null;}return s;}
+  const vs=sh(gl.VERTEX_SHADER,VS),fs=sh(gl.FRAGMENT_SHADER,FS);
+  if(!vs||!fs){glc.remove();return null;}
+  const pr=gl.createProgram();gl.attachShader(pr,vs);gl.attachShader(pr,fs);gl.linkProgram(pr);
+  if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){glc.remove();return null;}
+  gl.useProgram(pr);
+  const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1, 3,-1, -1,3]),gl.STATIC_DRAW);
+  const aLoc=gl.getAttribLocation(pr,'a');
+  gl.enableVertexAttribArray(aLoc);gl.vertexAttribPointer(aLoc,2,gl.FLOAT,false,0,0);
+  const U={};for(const n of ['uHalf','uF','uCam','uYaw','uPit','uWR','uSR','uWorld','uSkid','uT'])U[n]=gl.getUniformLocation(pr,n);
+  const maxTex=gl.getParameter(gl.MAX_TEXTURE_SIZE);
+  function mkTex(unit){const t=gl.createTexture();gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,t);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);return t;}
+  let wSrc=R.world;
+  if(Math.max(wSrc.width,wSrc.height)>maxTex){
+    const sc=maxTex/Math.max(wSrc.width,wSrc.height);
+    const c2=document.createElement('canvas');
+    c2.width=Math.floor(wSrc.width*sc);c2.height=Math.floor(wSrc.height*sc);
+    c2.getContext('2d').drawImage(wSrc,0,0,c2.width,c2.height);wSrc=c2;
+  }
+  mkTex(0);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,wSrc);
+  mkTex(1);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,R.skid);
+  gl.uniform1i(U.uWorld,0);gl.uniform1i(U.uSkid,1);
+  const [wx0,wy0,wx1,wy1]=R.bounds;
+  gl.uniform4f(U.uWR,wx0,wy0,1/(wx1-wx0),1/(wy1-wy0));
+  gl.uniform4f(U.uSR,R.minX,R.minY,R.SK/R.skid.width,R.SK/R.skid.height);
+  let skidDirty=1,lastSkidUp=0;
+  function markSkid(){skidDirty=1;}
+  function render(cam,tNow){
+    if(glc.width!==cvs.width||glc.height!==cvs.height){
+      glc.width=cvs.width;glc.height=cvs.height;
+      gl.viewport(0,0,glc.width,glc.height);
+    }
+    if(skidDirty&&tNow-lastSkidUp>350){skidDirty=0;lastSkidUp=tNow;
+      gl.activeTexture(gl.TEXTURE1);
+      gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,R.skid);}
+    gl.uniform2f(U.uHalf,W/2,H/2);
+    gl.uniform1f(U.uF,cam.fpx);
+    gl.uniform3f(U.uCam,cam.x,cam.y,cam.h);
+    gl.uniform2f(U.uYaw,cam.cos,cam.sin);
+    gl.uniform2f(U.uPit,cam.pc,cam.ps);
+    gl.uniform1f(U.uT,tNow);
+    gl.drawArrays(gl.TRIANGLES,0,3);
+  }
+  return {render,markSkid,canvas:glc};
+})();
+if(gl3d){
+  const _dm=R.drawMark;
+  R.drawMark=(a,b,c2,d,e)=>{_dm(a,b,c2,d,e);gl3d.markSkid();};
+}
+
+/* 체이스 카메라 + 원근 투영 */
+function cam3Of(){
+  const p=game.player;
+  const chi=-game.camRot-Math.PI/2;                    // 스무딩된 헤딩 재사용
+  const v=Math.abs(p.vF);
+  const D=15+v*.075, Hh=6.0+v*.022;
+  const cs=Math.cos(chi),sn=Math.sin(chi);
+  let cx=p.x-cs*D, cy=p.y-sn*D;
+  if(game.shake>0){cx+=(Math.random()-.5)*game.shake*1.5;cy+=(Math.random()-.5)*game.shake*1.5;}
+  const ps=.30,pc=Math.sqrt(1-ps*ps);
+  return {x:cx,y:cy,h:Hh,cos:cs,sin:sn,pc,ps,fpx:H*0.95};
+}
+function proj3(cam,wx,wy,wz){
+  const dx=wx-cam.x,dy=wy-cam.y,dz=(wz||0)-cam.h;
+  const along=dx*cam.cos+dy*cam.sin;
+  const right=-dx*cam.sin+dy*cam.cos;
+  const depth=along*cam.pc-dz*cam.ps;
+  if(depth<.6)return null;
+  const upc=along*cam.ps+dz*cam.pc;
+  return {x:W/2+cam.fpx*right/depth, y:H/2-cam.fpx*upc/depth, s:cam.fpx/depth, d:depth};
+}
+/* 지면 밀착 오브젝트용 로컬 아핀 변환 적용 */
+function groundXform(cam,wx,wy,ang){
+  const o=proj3(cam,wx,wy,0);if(!o)return null;
+  const f=proj3(cam,wx+Math.cos(ang),wy+Math.sin(ang),0);
+  const r=proj3(cam,wx-Math.sin(ang),wy+Math.cos(ang),0);
+  if(!f||!r)return null;
+  return {o,fx:f.x-o.x,fy:f.y-o.y,rx:r.x-o.x,ry:r.y-o.y};
+}
+
+function render3D(world,tNow){
+  const cam=cam3Of();
+  pf('gl',()=>gl3d.render(cam,tNow));
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.clearRect(0,0,W,H);
+  const items=[];
+  const push=(d,fn)=>items.push({d,fn});
+  // 조명탑 (기둥 + 헤드 글로우)
+  for(const l of track.lights){
+    const base=proj3(cam,l.x,l.y,0);
+    if(!base||base.d>430)continue;
+    const top=proj3(cam,l.x,l.y,9.5);
+    if(!top)continue;
+    push(base.d,()=>{
+      ctx.strokeStyle='rgba(96,110,132,.75)';ctx.lineWidth=clamp(base.s*.28,1,4.5);
+      ctx.beginPath();ctx.moveTo(base.x,base.y);ctx.lineTo(top.x,top.y);ctx.stroke();
+      const gs=clamp(top.s*4.5,8,54);
+      ctx.drawImage(R.towerSpr,top.x-gs,top.y-gs,gs*2,gs*2);
+      ctx.fillStyle='#eaf4ff';
+      ctx.fillRect(top.x-top.s*.35,top.y-top.s*.35,top.s*.7,top.s*.7);
+    });
+  }
+  // 코너 라벨·거리 보드 (수직 빌보드)
+  const bills=[];
+  const t1S=track.corners[0].i*track.step,t7S=track.corners[6].i*track.step;
+  function boardAt(sPos,spr){
+    const i=Math.floor(((sPos%track.len)+track.len)/track.step)%track.N;
+    const p=track.pts[i],n=track.nrm[i];
+    const off=track.width[i]/2+2.2;
+    bills.push([p[0]+n[0]*off,p[1]+n[1]*off,spr,2.6]);
+  }
+  boardAt(t1S-100,R.boardSpr['100']);boardAt(t1S-50,R.boardSpr['50']);boardAt(t7S-90,R.boardSpr['100']);
+  for(let ci=0;ci<track.corners.length;ci++){
+    const c=track.corners[ci];
+    const p=track.pts[c.i],n=track.nrm[c.i],k=track.kap[c.i];
+    const sgn=-Math.sign(k)||1;
+    const off=track.width[c.i]/2+3.4;
+    bills.push([p[0]+n[0]*off*sgn,p[1]+n[1]*off*sgn,R.cornerSpr[ci],3.2]);
+  }
+  for(const [bx,by,spr,hM] of bills){
+    const pr=proj3(cam,bx,by,hM*.55);
+    if(!pr||pr.d>330)continue;
+    push(pr.d,()=>{
+      const sc=Math.min(pr.s,22);
+      const w2=spr.wM*sc,h2=spr.hM*sc;
+      ctx.drawImage(spr.c,pr.x-w2/2,pr.y-h2/2,w2,h2);
+    });
+  }
+  // 관람차 (지오 앵커 실루엣 — 코스 밖 원경)
+  {
+    const fw=[R.bounds[0]-120,R.bounds[1]-90];
+    const pr=proj3(cam,fw[0],fw[1],26);
+    if(pr){push(pr.d,()=>{ctx.save();ctx.globalAlpha=.85;
+      ctx.translate(pr.x,pr.y);ctx.scale(pr.s,pr.s);ferrisArt(tNow,22);ctx.restore();});}
+  }
+  // 차량 (헤드라이트 데칼 → 그림자 → 차체 순)
+  const carsAll=world.ghostPos?[{ghost:true,g:world.ghostPos}]:[];
+  for(const c of world.cars)carsAll.push({c});
+  for(const e of carsAll){
+    const cc=e.ghost?{x:e.g[0],y:e.g[1],ang:e.g[2],body:'#8fd8ff',stripe:'#eaffff',num:'',brakeVis:false}:e.c;
+    const gx=groundXform(cam,cc.x,cc.y,cc.ang);
+    if(!gx||gx.o.d>380)continue;
+    push(gx.o.d,()=>{
+      ctx.save();
+      if(e.ghost)ctx.globalAlpha=.38;
+      // 빔 데칼 (지면) — 다중 차량 중첩 블룸 방지 위해 감쇠
+      if(!e.ghost){
+        ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=.5;
+        ctx.setTransform(DPR,0,0,DPR,0,0);
+        ctx.transform(gx.fx,gx.fy,gx.rx,gx.ry,gx.o.x,gx.o.y);
+        ctx.drawImage(R.beamSpr,CAR_LEN/2-1,-CAR_W*2.6,37,CAR_W*5.2);
+        ctx.restore();
+      }
+      // 그림자 (지면)
+      ctx.save();
+      ctx.setTransform(DPR,0,0,DPR,0,0);
+      ctx.transform(gx.fx,gx.fy,gx.rx,gx.ry,gx.o.x,gx.o.y);
+      carShadow();
+      ctx.restore();
+      // 차체 (살짝 띄움)
+      ctx.save();
+      ctx.setTransform(DPR,0,0,DPR,0,0);
+      ctx.translate(0,-gx.o.s*.5);
+      ctx.transform(gx.fx,gx.fy,gx.rx,gx.ry,gx.o.x,gx.o.y);
+      carArt(cc);
+      ctx.restore();
+      ctx.restore();
+    });
+  }
+  // 파티클
+  for(const p of fx.parts){
+    const pr=proj3(cam,p.x,p.y,p.kind===3?1.2:0);
+    if(!pr||pr.d>240)continue;
+    push(pr.d,()=>{
+      const k=1-p.t/p.life,sz=pr.s;
+      if(p.kind===0){ctx.fillStyle=`rgba(255,220,90,${k})`;ctx.fillRect(pr.x,pr.y,Math.max(1,sz*.5),Math.max(1,sz*.5));}
+      else if(p.kind===1){ctx.fillStyle=`rgba(150,160,175,${k*.20})`;
+        ctx.beginPath();ctx.arc(pr.x,pr.y,p.r*(1.6-k*.6)*sz,0,TAU);ctx.fill();}
+      else if(p.kind===2){ctx.fillStyle=`rgba(96,120,70,${k*.8})`;ctx.fillRect(pr.x,pr.y,Math.max(1,sz*.6),Math.max(1,sz*.6));}
+      else{ctx.fillStyle=p.c;ctx.globalAlpha=k;ctx.fillRect(pr.x,pr.y,Math.max(1,sz*.8),Math.max(1,sz*.5));ctx.globalAlpha=1;}
+    });
+  }
+  // 불꽃놀이 (공중)
+  for(const f of fx.fires){
+    const pr=proj3(cam,f.x,f.y,20);
+    if(!pr)continue;
+    push(pr.d,()=>{
+      ctx.save();ctx.globalCompositeOperation='lighter';
+      const k=clamp(f.t/f.dur,0,1),sz=pr.s;
+      if(k<1){ctx.strokeStyle=`hsla(${f.hue},95%,70%,${1-k})`;ctx.lineWidth=Math.max(1,sz*.5);
+        ctx.beginPath();ctx.moveTo(pr.x,pr.y+sz*20);ctx.lineTo(pr.x,pr.y+sz*20*(1-k));ctx.stroke();}
+      else{const e2=(f.t-f.dur)/1.2;
+        for(let i=0;i<26;i++){const a=i/26*TAU,rr=e2*sz*18;
+          ctx.fillStyle=`hsla(${f.hue+i*4},95%,${70-e2*30}%,${1-e2})`;
+          ctx.fillRect(pr.x+Math.cos(a)*rr,pr.y+Math.sin(a)*rr-e2*sz*5,Math.max(1,sz*.8),Math.max(1,sz*.8));}}
+      ctx.restore();
+    });
+  }
+  items.sort((a,b)=>b.d-a.d);
+  for(const it of items)it.fn();
+  pf('mmap',()=>renderMinimap(world));
+}
+
+/* =====================================================================
    GAME
    ===================================================================== */
 const params=new URLSearchParams(location.search);
@@ -1411,6 +1690,7 @@ const game={
     $('pauseBtn').style.display='block';
     this.cars=[];fx.parts.length=0;fx.fires.length=0;
     R.skg.clearRect(0,0,R.skid.width,R.skid.height);
+    if(gl3d)gl3d.markSkid();
     const startS=(track.sfS-0+track.len)%track.len;
     if(this.mode==='ta'){
       const p=new Car({isPlayer:true,name:'YOU',num:5,body:'#e8322a',stripe:'#fff'});
@@ -1716,10 +1996,22 @@ const game={
   updateHUD(full){
     const p=this.player;if(!p)return;
     if(SKIP.has('hud'))return;
-    const rpm01=clamp((Math.abs(p.vF)*3.6%42)/42*.85+Math.abs(p.vF)/track.VMAX/3.6*.3+ (input.throttle?.12:0),0,1);
-    // 엔진 사운드는 매 프레임
+    const vk=Math.abs(p.vF)*3.6;
+    const gr=gearRpm(vk);
+    const rpm01=clamp(gr.rpm+(input.throttle?.06:0),0,1);
+    // 엔진 사운드는 매 프레임 (계기판과 동일 모델)
     audio.engine(rpm01,input.throttle,p.isPlayer?1:0);
     audio.skid(p.drift?clamp(p.slip/9,0,1):0);
+    // 브레이킹 어시스트: 전방 코너 목표속도 대비 과속 경고
+    const bh=$('brakeHint');
+    if(bh&&this.state==='run'&&!this.paused&&Math.abs(p.vF)>17){
+      const ahead=Math.ceil((20+p.vF*p.vF/22)/track.step);
+      let vmin=1e9;
+      for(let j=2;j<ahead;j+=3){const idx=(p.idx+j)%track.N;
+        const allow=Math.sqrt(track.vt[idx]*track.vt[idx]+2*15*j*track.step);
+        if(allow<vmin)vmin=allow;}
+      bh.classList.toggle('on',p.vF>vmin*1.1);
+    }else if(bh)bh.classList.remove('on');
     // DOM 갱신은 ~30Hz로 스로틀 (레이아웃 비용)
     const nowP=performance.now();
     if(!full&&this._hudT&&nowP-this._hudT<33)return;
@@ -1737,8 +2029,8 @@ const game={
       dEl.textContent=fmtDelta(est);
       dEl.className='mono '+(est<=0?'minus':'plus');
     }else if(dEl.textContent!==''){dEl.textContent='';}
-    $('speed').innerHTML=Math.round(Math.abs(p.vF)*3.6)+'<small> km/h</small>';
-    const gear=p.vF<-.5?'R':(Math.abs(p.vF)<.5?'N':String(1+Math.min(5,Math.floor(Math.abs(p.vF)*3.6/42))));
+    $('speed').innerHTML=Math.round(vk)+'<small> km/h</small>';
+    const gear=p.vF<-.5?'R':(Math.abs(p.vF)<.5?'N':String(gr.gear));
     $('gear').textContent=gear==='R'||gear==='N'?gear:gear+'단';
     $('rpmFill').style.width=(rpm01*100)+'%';
     if(full){
@@ -1780,7 +2072,8 @@ function frame(now){
   }
   if(PROF)profT._frames=(profT._frames||0)+1;
   if(game.state==='run'||game.state==='result'){
-    render({x:game.camX,y:game.camY,rot:game.camRot,zoom:game.camZoom,carUp:true},game,now);
+    if(view3D&&gl3d)render3D(game,now);
+    else render({x:game.camX,y:game.camY,rot:game.camRot,zoom:game.camZoom,carUp:true},game,now);
   }else{
     renderAttract(now);
   }
@@ -1817,6 +2110,20 @@ $('btnResume').onclick=()=>game.togglePause();
 $('btnFinish').onclick=()=>{game.paused=false;$('scrPause').classList.add('hidden');game.showResult();};
 $('btnAuto').onclick=()=>setAutoAccel(!autoAccel);
 syncAutoUI();
+/* 시점 토글 (3D 체이스 / 탑다운) */
+let view3D=!!gl3d&&store.read('view3d',true);
+if(_qs.get('view')==='2d')view3D=false;
+if(_qs.get('view')==='3d'&&gl3d)view3D=true;
+function syncViewUI(){
+  $('btnView').textContent='📷 시점: '+(view3D?'3D 체이스':'탑다운');
+  if(gl3d)gl3d.canvas.style.display=view3D?'block':'none';
+}
+syncViewUI();
+$('btnView').onclick=()=>{
+  if(!gl3d){ui.toast('이 기기는 3D 뷰를 지원하지 않습니다');return;}
+  view3D=!view3D;store.write('view3d',view3D);syncViewUI();
+  ui.toast(view3D?'3D 체이스 뷰':'탑다운 뷰');
+};
 const SENS_STEPS=[[.85,'부드럽게'],[1,'보통'],[1.2,'강하게']];
 function syncSensUI(){const s=SENS_STEPS.find(x=>x[0]===steerSens)||SENS_STEPS[1];
   $('btnSens').textContent='🎯 조향 감도: '+s[1];}
