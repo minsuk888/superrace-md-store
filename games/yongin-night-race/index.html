@@ -209,7 +209,7 @@
       <kbd>Space</kbd> 드리프트 · <kbd>R</kbd> 코스 복귀 · <kbd>Esc</kbd> 일시정지 · <kbd>M</kbd> 음소거
     </div>
     <div class="foot">
-      본 게임은 실제 코스 자료(총장 2.538km·11코너, 풀코스의 백스트레이트 구간을 생략하고 남동측 복합 코너로 직결하는 나이트 전용 레이아웃)를 바탕으로 제작된 <b>비공식 팬 메이드</b>입니다.
+      본 게임의 트랙은 공식 나이트코스 코스도(총장 2.538km·11코너)를 디지타이즈해 재현한 것으로, <b>비공식 팬 메이드</b>입니다.
       SUPERRACE·에버랜드 스피드웨이와 무관합니다 · SUPERRACE MD STORE
     </div>
   </div>
@@ -220,18 +220,19 @@
   <div class="card">
     <div class="kicker">TRACK GUIDE · 스피드웨이 나이트코스</div>
     <h1 style="font-size:clamp(22px,4vw,34px)">코스 가이드</h1>
-    <div class="sub">풀코스(4.346km·16코너)에서 960m 백스트레이트와 동측 확장부를 생략하고, 5번 코너 뒤 링크 구간으로 남동측 복합 코너(트윈 헤어핀·짧은 S자)에 직결하는 <b>나이트레이스 전용 2.538km</b> 레이아웃입니다.</div>
+    <div class="sub">공식 코스도를 그대로 디지타이즈한 <b>나이트레이스 전용 2.538km·11코너</b> 레이아웃 — 대각선 메인 스트레이트(456m), 정상부 헤어핀 콤플렉스, 동측 3연속 헤어핀 스위치백으로 구성됩니다.</div>
     <div class="g-grid">
       <canvas id="guideMap"></canvas>
       <div class="tips">
-        <div><b>T1</b> 메인 스트레이트 끝 중속 우코너 — 제동 기준 60m, 런오프가 좁아 진입 과속 금물</div>
-        <div><b>T2</b> 오르막 좌코너 — 언덕을 오르며 리듬 유지</div>
-        <div><b>T3</b> 정상부 헤어핀(최대 추월 포인트) — 탈출 가속 우선</div>
-        <div><b>T4–T5</b> 능선을 넘는 고속 스윕 — 시야가 늦게 열리는 구간</div>
-        <div><b>T6</b> 나이트코스 전용 링크 우코너 — 내리막 진입 주의</div>
-        <div><b>T7</b> 내리막 좌킹크 — 복합 코너 진입 브레이킹 포인트</div>
-        <div><b>T8–T9</b> 쌍둥이 우코너 — 첫 코너를 희생하고 두 번째 탈출을 살릴 것</div>
-        <div><b>T10–T11</b> 짧은 S자 — 연석을 살짝 쓰되 언더스티어 주의, 이후 456m 풀가속</div>
+        <div><b>T1</b> 메인 스트레이트 끝 우코너 — 제동 기준 60m, 런오프가 좁아 진입 과속 금물</div>
+        <div><b>T2</b> 정상부 우헤어핀(최대 추월 포인트) — 탑 벤드 직후 진입, 탈출 가속 우선</div>
+        <div><b>T3–T4</b> 연속 좌코너 — 내리막→오르막 전환 리듬 구간</div>
+        <div><b>T5</b> 능선 우코너 — 이후 긴 내리막 풀가속</div>
+        <div><b>T6</b> 고속 우킹크 — 라인 유지하면 전개(스로틀) 유지 가능</div>
+        <div><b>T7</b> 우헤어핀 — 내리막 끝 하드 브레이킹, 최대 승부처</div>
+        <div><b>T8</b> 좌헤어핀 — 연속 스위치백, 첫 코너를 희생하고 탈출 우선</div>
+        <div><b>T9</b> 최동단 우헤어핀 — 탈출이 바텀 스트레이트로 직결</div>
+        <div><b>T10–T11</b> 좌킹크·우코너 — 마지막 복합, 456m 메인 스트레이트 진입이 랩타임을 좌우</div>
       </div>
     </div>
     <div class="btnrow"><button class="btn ghost" id="btnGuideBack">← 돌아가기</button></div>
@@ -320,40 +321,55 @@ let top10=store.read('top10',[]);        // [{name,ms,date,mode}]
    좌표계: +x 동쪽, +y 남쪽(화면 아래), 북쪽이 화면 위. 시계방향 주행.
    컨트롤 포인트를 Catmull-Rom 스플라인으로 이어 실측 2,538m로 스케일.
    ===================================================================== */
+/* 공식 나이트코스 맵(슈퍼레이스 제공 코스도)을 픽셀 단위로 디지타이즈한 중심선.
+   좌표 단위: 코스도 px (≈1.78 m/px) — 빌드 시 전장 2,538m로 정규화됨. 시계방향. */
 const CP=[
-  // 메인 스트레이트 (동→서 주행, 완만한 보우) — 456m
-  [576,27],[520,30],[452,33],[380,35],[308,36],[244,34],[196,30],
-  // T1: 중속 우코너 (서→북) 오르막 진입
-  [152,22],[124,6],[110,-20],[106,-50],
-  // 오르막 직선
-  [107,-88],[109,-122],
-  // T2: 오르막 좌코너 (북→북서)
-  [105,-158],[94,-190],[77,-216],
-  [63,-240],
-  // T3: 정상 헤어핀 (북서→동남) — 최대 추월 포인트
-  [55,-264],[53,-288],[62,-308],[81,-318],[102,-313],[114,-296],
-  // T4: 좌코너로 능선 통과 (동남→동)
-  [122,-281],[139,-273],[164,-273],[194,-281],
-  // 능선 고속 구간
-  [228,-291],[264,-298],[302,-301],[340,-299],
-  // T5: 우스윕 (동→동남동)
-  [374,-293],[404,-282],[430,-268],
-  // T6: 나이트 링크 우코너 (동→남)
-  [456,-251],[471,-228],[477,-202],
-  // 링크 내리막 직선 (남)
-  [477,-166],[475,-130],[473,-96],
-  // T7: 내리막 좌킹크 (남→동)
-  [476,-70],[489,-50],[512,-39],
-  // 동측 진입로
-  [545,-32],[583,-28],[622,-26],[660,-26],
-  // T8: 트윈 우코너 1 (동→남)
-  [694,-23],[715,-10],[722,12],
-  [720,34],
-  // T9: 트윈 우코너 2 (남→서)
-  [711,54],[690,64],[663,65],
-  [637,61],
-  // T10–T11: 짧은 S자 (좌-우) → 메인 스트레이트 합류
-  [613,54],[597,42],[588,31]
+  // 메인 스트레이트 (T11 출구→T1, 북서진, 완만한 좌보우) — S/F 포함, 실측 456m [0-9]
+  [204,251],[190,235],[173,216],[154,195],[136,176],[120,153],[105,131],[90,109],[76,89],[63,71],
+  // T1: 최좌측 우코너 (북서→동북동)                                            [10-13]
+  [54,60],[50,52],[53,44],[62,40],
+  // T1→탑 벤드 능선 등반 (동북동)                                              [14-17]
+  [80,37],[98,32],[116,28],[130,26],
+  // 탑 벤드 (무번호 우, ~55°) → T2 진입                                        [18-19]
+  [139,29],[144,35],
+  // T2: 정상부 우헤어핀 (동남동→서남서) — 추월 포인트                          [20-23]
+  [149,40],[153,46],[150,53],[142,56],
+  // T2→T3 (서남서)                                                             [24-26]
+  [126,60],[108,63],[93,66],
+  // T3: 좌코너 (서남서→남동)                                                   [27-29]
+  [85,70],[86,79],[93,90],
+  // T3→T4 내리막                                                               [30-31]
+  [102,101],[112,112],
+  // T4: 좌코너 (남남동→동북동)                                                 [32-34]
+  [121,120],[130,121],[139,114],
+  // T4→T5 오르막                                                               [35-36]
+  [149,106],[157,99],
+  // T5: 능선 우코너 (동북동→동남동)                                            [37-39]
+  [164,96],[171,99],[178,105],
+  // T5→T6 긴 내리막 (동남동)                                                   [40-42]
+  [196,115],[216,127],[236,139],
+  // T6: 고속 우킹크                                                            [43-44]
+  [251,146],[266,152],
+  // T6→T7 (동남동 계속)                                                        [45-48]
+  [290,159],[314,164],[336,168],[352,170],
+  // T7: 우헤어핀 (동남동→서)                                                   [49-52]
+  [363,170],[370,175],[369,182],[361,185],
+  // T7→T8 (서)                                                                 [53-55]
+  [344,186],[324,187],[305,187],
+  // T8: 좌헤어핀 (서→동, 아래로 감김)                                          [56-60]
+  [292,188],[283,192],[281,199],[286,205],[295,208],
+  // T8→T9 롱런 (동, 살짝 내리막)                                               [61-66]
+  [320,211],[350,214],[382,217],[414,219],[444,221],[463,222],
+  // T9: 최동단 우헤어핀 (동→서)                                                [67-70]
+  [476,224],[483,230],[481,236],[472,239],
+  // T9→T10 바텀 스트레이트 (서)                                                [71-77]
+  [450,239],[420,239],[390,238],[358,238],[326,237],[298,237],[276,236],
+  // T10: 좌킹크 (서→남서)                                                      [78-80]
+  [266,238],[257,243],[248,250],
+  // T10→T11                                                                    [81-82]
+  [237,256],[228,260],
+  // T11: 우코너 (남서→북서) → 메인 스트레이트                                  [83-85]
+  [221,263],[214,262],[209,256]
 ];
 
 const NIGHT_LEN=2538;                     // 실측 전장 (m)
@@ -407,8 +423,8 @@ const track=(()=>{
   // 경사(고저 연출): T1~T3 오르막, T3 정상, T4~T7 내리막 — s 구간 기반 근사
   const grade=new Float32Array(N);
   for(let i=0;i<N;i++){
-    const y=pts[i][1];                                 // 북쪽(-y)일수록 높다
-    grade[i]=clamp((-y-40)/300,0,1)*1;                 // 0(저지)~1(정상) 고도 근사
+    const y=pts[i][1];                                 // 코스도 상단(작은 y)이 정상부
+    grade[i]=clamp((340-y)/300,0,1);                   // 0(저지)~1(정상) 고도 근사
   }
   const elev=smooth(grade,20);
   const slope=new Float32Array(N);                     // + = 오르막
@@ -418,7 +434,7 @@ const track=(()=>{
   for(let i=0;i<N;i++){const k=kapS[i];rawOff[i]=clamp(k*900,-1,1)*Math.max(0,widthS[i]/2-2.4);}
   const lineOff=smooth(smooth(rawOff,26),12);
   // AI 목표 속도 프로파일
-  const A_LAT=10.4,A_BRK=16,A_ACC=8.2,VMAX=57;
+  const A_LAT=11.6,A_BRK=16,A_ACC=8.6,VMAX=59;
   const vt=new Float32Array(N);
   for(let i=0;i<N;i++){vt[i]=Math.min(VMAX,Math.sqrt(A_LAT/Math.max(Math.abs(kapS[i]),1e-4)));}
   for(let pass=0;pass<3;pass++)for(let i=N-1;i>=0;i--){const nx=vt[(i+1)%N];vt[i]=Math.min(vt[i],Math.sqrt(nx*nx+2*A_BRK*step));}
@@ -454,15 +470,15 @@ const track=(()=>{
   const SC2=SC;
   function ptAt(cpIdx){const p=CP[cpIdx];return nearest(p[0]*SC2,p[1]*SC2);}
   const corners=[
-    {n:'T1', i:ptAt(8)},  {n:'T2', i:ptAt(14)}, {n:'T3', i:ptAt(19)},
-    {n:'T4', i:ptAt(24)}, {n:'T5', i:ptAt(32)}, {n:'T6', i:ptAt(35)},
-    {n:'T7', i:ptAt(41)}, {n:'T8', i:ptAt(48)}, {n:'T9', i:ptAt(52)},
-    {n:'T10',i:ptAt(55)}, {n:'T11',i:ptAt(57)}
+    {n:'T1', i:ptAt(11)}, {n:'T2', i:ptAt(21)}, {n:'T3', i:ptAt(28)},
+    {n:'T4', i:ptAt(33)}, {n:'T5', i:ptAt(38)}, {n:'T6', i:ptAt(43)},
+    {n:'T7', i:ptAt(50)}, {n:'T8', i:ptAt(58)}, {n:'T9', i:ptAt(68)},
+    {n:'T10',i:ptAt(79)}, {n:'T11',i:ptAt(84)}
   ];
-  // S/F 라인: 메인 스트레이트 중간 (CP[2] 부근)
-  const sfIdx=ptAt(2), sfS=sfIdx*step;
-  // 섹터 경계: S1 = T3 탈출, S2 = T7 진입, S3 = S/F
-  const sec1=((corners[3].i*step-sfS)+len)%len, sec2=((corners[6].i*step-sfS)+len)%len;
+  // S/F 라인: 메인 스트레이트의 공식 START 지점 (CP[4] 부근)
+  const sfIdx=ptAt(4), sfS=sfIdx*step;
+  // 섹터 경계: S1 = T5 탈출(정상부 콤플렉스), S2 = T9 탈출(동측 스위치백), S3 = S/F
+  const sec1=((corners[4].i*step-sfS)+len)%len, sec2=((corners[8].i*step-sfS)+len)%len;
   // 조명탑 (약 90m 간격, 좌우 교차)
   const lights=[];
   for(let s=0,side=1;s<len;s+=88,side*=-1){
@@ -678,14 +694,14 @@ class Car{
     const steerMax=.55/(1+v*.085);
     const target=this.steerCur*steerMax*(hb?1.5:1);
     this.steerVis=lerp(this.steerVis,steer,clamp(dt*8,0,1));
-    const gripYaw=(this.onGrass?7.4:12.6)/Math.max(v,4);
+    const gripYaw=(this.onGrass?7.4:13.6)/Math.max(v,4);
     let yaw=clamp(target*v/2.62,-gripYaw,gripYaw);
     if(this.vF<0)yaw*=-1;
     this.ang+=yaw*dt*clamp(v/2,0,1);
     // 종방향
     const VMAX=track.VMAX*(this.isPlayer?1:this.skill);
     let acc=0;
-    if(throttle>0)acc+=throttle*(this.onGrass?4:8.9)*muAcc*Math.max(.25,1-v/VMAX);
+    if(throttle>0)acc+=throttle*(this.onGrass?4:9.6)*muAcc*Math.max(.25,1-v/VMAX);
     if(brake>0){ if(this.vF>1)acc-=brake*22; else if(this.vF>-8)acc-=brake*6; }
     acc-=slope*2.6;                                    // 오르막 감속/내리막 가속
     acc-=(this.onGrass?.09:.012)*this.vF*Math.abs(this.vF)*.02+Math.sign(this.vF)*(this.onGrass?2.4:.35);
@@ -906,9 +922,9 @@ const R=(()=>{
   const poolSpr=glowSprite(128,'rgba(255,240,205,.10)','rgba(255,246,220,.20)');
   const headSpr=glowSprite(64,'rgba(255,250,230,.55)','rgba(255,255,255,.95)');
   const towerSpr=glowSprite(96,'rgba(190,225,255,.22)','rgba(235,246,255,.6)');
-  // 타이어 배리어 (T1·T3·T8 아웃코스) + 수목 데코
+  // 타이어 배리어 (T2·T7·T9 헤어핀 아웃코스) + 수목 데코
   const tires=[];
-  for(const ci of [0,2,7]){
+  for(const ci of [1,6,8]){
     const cc=track.corners[ci];
     for(let j=-8;j<=8;j+=2){
       const i=((cc.i+j*2)%N+N)%N;
@@ -1016,8 +1032,8 @@ function render(cam,world,tNow){
   const diag=hyp(bx1-bx0,by1-by0);
   for(let sx=-diag/2;sx<diag/2;sx+=56)ctx.fillRect(sx,-diag/2,28,diag);
   ctx.restore();
-  // 외곽 시설: 주차장(동), 잔디 패치
-  ctx.fillStyle='#0d1420';ctx.fillRect(bx0+20,by0+16,120,90);
+  // 외곽 시설: 주차장(동측)
+  ctx.fillStyle='#0d1420';ctx.fillRect(bx1-170,by0+24,130,80);
   // 수목
   for(const t of R.trees){
     ctx.fillStyle=`rgba(14,34,22,${.55+t[3]*.3})`;
@@ -1027,7 +1043,7 @@ function render(cam,world,tNow){
   }
   // 에버랜드 방향 관람차 실루엣 (북서)
   (function ferris(){
-    const fx0=bx0+70,fy0=by0+60,r=34;
+    const fx0=bx0+52,fy0=by0+44,r=30;
     ctx.save();ctx.translate(fx0,fy0);ctx.strokeStyle='rgba(120,150,210,.28)';ctx.lineWidth=1.4;
     ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.stroke();
     for(let i=0;i<10;i++){const a=tNow*.00012+i/10*TAU;
@@ -1089,8 +1105,8 @@ function render(cam,world,tNow){
     ctx.fillStyle='#fff';ctx.font='900 1.9px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.fillText(label,0,.1);ctx.restore();
   }
-  const t1S=track.corners[0].i*track.step, t3S=track.corners[2].i*track.step;
-  board(t1S-100,'100');board(t1S-50,'50');board(t3S-80,'100');
+  const t1S=track.corners[0].i*track.step, t7S=track.corners[6].i*track.step;
+  board(t1S-100,'100');board(t1S-50,'50');board(t7S-90,'100');
   // 코너 번호 보드
   ctx.font='900 2.6px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
   for(const c of track.corners){
@@ -1202,7 +1218,7 @@ function renderMinimap(world){
   ctx.fillRect(-2,-14,4,28);ctx.restore();
   // 코너 라벨
   ctx.font='900 26px sans-serif';ctx.textAlign='center';ctx.fillStyle='#9fd4ff';
-  for(const c of [0,2,5,7]){const cc=track.corners[c],p=track.pts[cc.i],n=track.nrm[cc.i],k=track.kap[cc.i];
+  for(const c of [0,1,6,8]){const cc=track.corners[c],p=track.pts[cc.i],n=track.nrm[cc.i],k=track.kap[cc.i];
     const sgn=-Math.sign(k)||1;ctx.fillText(cc.n,p[0]+n[0]*sgn*46,p[1]+n[1]*sgn*46+9);}
   // 고스트/AI/플레이어
   if(world.ghostPos){ctx.fillStyle='#9fe8ff';ctx.beginPath();ctx.arc(world.ghostPos[0],world.ghostPos[1],13,0,TAU);ctx.fill();}
@@ -1268,7 +1284,7 @@ function renderGuideMap(){
   g.fillStyle='#8fa5c0';g.font='700 12px sans-serif';g.textAlign='left';
   g.fillText('SPEEDWAY NIGHT COURSE · 2.538 km · 시계방향',12,ch-24);
   g.fillStyle='#5c6b80';
-  g.fillText('S1 ● 레드 · S2 ● 시안 · S3 ● 골드 — 456m 메인 스트레이트 · T3 헤어핀 · T8–T9 트윈 코너',12,ch-8);
+  g.fillText('S1 ● 레드 · S2 ● 시안 · S3 ● 골드 — 456m 메인 스트레이트 · T2 정상 헤어핀 · T7–T9 스위치백',12,ch-8);
 }
 
 /* =====================================================================
@@ -1324,7 +1340,7 @@ const game={
         const lv=LIVERIES[(k+1)%LIVERIES.length];       // 0번(레드)은 플레이어 전용
         const c=new Car({isPlayer:isP,name:isP?'YOU':['K.민준','서지우','한도윤','R.하늘','정시온','L.재이','문선우'][k>5?k-1:k],
           num:[7,12,23,46,88,5,95,11][k],body:isP?'#e8322a':lv[0],stripe:isP?'#fff':lv[1],
-          skill:isP?1:0.955+((k*37)%10)*.004,});
+          skill:isP?1:0.966+((k*37)%10)*.0035,});
         c.place(gs,off);
         c.progress=-dBehind;                            // S/F 라인에서 0
         this.cars.push(c); if(isP)this.player=c;
