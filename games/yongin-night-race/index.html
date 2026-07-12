@@ -106,15 +106,26 @@
   /* touch controls */
   #touch{position:fixed;inset:0;z-index:20;pointer-events:none;display:none}
   #touch.on{display:block}
-  .tbtn{position:absolute;bottom:calc(20px + env(safe-area-inset-bottom));width:clamp(64px,17vw,96px);height:clamp(64px,17vw,96px);
+  :root{--tb:clamp(66px,17vw,94px);--tbL:clamp(84px,22vw,116px);--tbS:clamp(46px,11vw,58px);
+    --tbot:calc(18px + env(safe-area-inset-bottom))}
+  .tbtn{position:absolute;bottom:var(--tbot);width:var(--tb);height:var(--tb);
     border-radius:50%;background:rgba(30,42,62,.5);border:1.5px solid rgba(150,180,220,.35);
     color:#dfe9f5;font-size:clamp(22px,6vw,30px);font-weight:900;display:flex;align-items:center;justify-content:center;
-    pointer-events:auto;backdrop-filter:blur(3px)}
-  .tbtn:active,.tbtn.press{background:rgba(60,120,200,.55)}
-  #tL{left:18px}#tR{left:calc(30px + clamp(64px,17vw,96px))}
-  #tB{right:calc(30px + clamp(64px,17vw,96px))}#tA{right:18px;background:rgba(160,40,30,.45)}
-  #tHB{right:18px;bottom:calc(34px + env(safe-area-inset-bottom) + clamp(64px,17vw,96px));width:clamp(48px,12vw,64px);height:clamp(48px,12vw,64px);font-size:clamp(11px,3vw,13px)}
-  #tRst{right:calc(30px + clamp(64px,17vw,96px));bottom:calc(34px + env(safe-area-inset-bottom) + clamp(64px,17vw,96px));width:clamp(48px,12vw,64px);height:clamp(48px,12vw,64px);font-size:clamp(11px,3vw,13px);background:rgba(40,80,60,.45)}
+    pointer-events:auto;backdrop-filter:blur(3px);user-select:none}
+  .tbtn.press{background:rgba(60,120,200,.6);border-color:rgba(160,210,255,.7)}
+  #tL{left:16px}#tR{left:calc(32px + var(--tb))}
+  #tA{right:16px;width:var(--tbL);height:var(--tbL);background:rgba(160,40,30,.5)}
+  #tA.press{background:rgba(220,70,50,.65)}
+  #tB{right:calc(32px + var(--tbL))}
+  #tHB{right:calc(32px + var(--tbL));bottom:calc(var(--tbot) + var(--tb) + 12px);
+    width:var(--tbS);height:var(--tbS);font-size:clamp(10px,2.8vw,12px)}
+  #tRst{right:16px;bottom:calc(var(--tbot) + var(--tbL) + 58px);
+    width:var(--tbS);height:var(--tbS);font-size:clamp(10px,2.8vw,12px);background:rgba(40,80,60,.45)}
+  #tAuto{position:absolute;right:16px;bottom:calc(var(--tbot) + var(--tbL) + 12px);
+    width:var(--tbL);height:34px;border-radius:999px;display:flex;align-items:center;justify-content:center;
+    font-size:clamp(10px,2.9vw,12px);font-weight:800;letter-spacing:.06em;color:#9aa7b8;
+    background:rgba(24,34,52,.55);border:1.5px solid rgba(150,180,220,.3);pointer-events:auto;backdrop-filter:blur(3px)}
+  #tAuto.on{color:#0a1420;background:rgba(61,255,138,.85);border-color:rgba(61,255,138,.9)}
   /* results */
   #resTitle{font-size:clamp(26px,5vw,44px);font-weight:900;margin:8px 0 2px}
   .res-time{font-size:clamp(30px,6vw,52px);font-weight:900;color:var(--gold)}
@@ -181,6 +192,7 @@
   <div class="tbtn" id="tL">◀</div><div class="tbtn" id="tR">▶</div>
   <div class="tbtn" id="tHB">드리프트</div><div class="tbtn" id="tRst">복귀</div>
   <div class="tbtn" id="tB">−</div><div class="tbtn" id="tA">+</div>
+  <div id="tAuto">오토 액셀 OFF</div>
 </div>
 
 <!-- TITLE -->
@@ -577,33 +589,46 @@ function pollKeys(){
 /* touch: 화면 전체에서 모든 포인터를 추적해 버튼 존 판정 (멀티터치/슬라이드 안정) */
 const touchEl=$('touch');
 const isTouch=matchMedia('(pointer:coarse)').matches;
-let autoAccel=store.read('autoAccel',isTouch);          // 터치 기기는 오토 액셀 기본 켜짐
-if(isTouch){ $('ctlHint').innerHTML='◀▶ 조향 (오토 액셀 기본 켜짐) · <b>−</b> 브레이크 · <b>+</b> 수동 가속 · 드리프트/복귀 버튼 · 여러 버튼 동시 조작 가능'; }
-const tstate={L:0,R:0,A:0,B:0,HB:0,RST:0};
-const T_BTNS=[['tL','L'],['tR','R'],['tA','A'],['tB','B'],['tHB','HB'],['tRst','RST']];
+let autoAccel=store.read('autoAccel2',false);           // 기본 꺼짐 — AUTO 버튼으로 토글
+if(isTouch){ $('ctlHint').innerHTML='◀▶ 조향 · <b>+</b> 가속 · <b>−</b> 브레이크 · 드리프트/복귀 · <b>AUTO</b>를 켜면 가속이 자동입니다'; }
+const tstate={L:0,R:0,A:0,B:0,HB:0,RST:0,AUTO:0};
+const T_BTNS=[['tL','L'],['tR','R'],['tA','A'],['tB','B'],['tHB','HB'],['tRst','RST'],['tAuto','AUTO']];
 T_BTNS.forEach(([id])=>{$(id).style.pointerEvents='none';}); // 버튼은 표시 전용
 const activePts=new Map();
-let rstLatch=false;
-function refreshTouchState(){
-  const prevRst=tstate.RST;
-  for(const k in tstate)tstate[k]=0;
-  if(activePts.size){
-    const rects=T_BTNS.map(([id,k])=>[ $(id).getBoundingClientRect(), k ]);
-    for(const p of activePts.values()){
-      for(const [r,k] of rects){
-        if(p.x>=r.left-16&&p.x<=r.right+16&&p.y>=r.top-16&&p.y<=r.bottom+16)tstate[k]=1;
-      }
-    }
+const latch={RST:false,AUTO:false};
+function syncAutoUI(){
+  $('tAuto').classList.toggle('on',autoAccel);
+  $('tAuto').textContent='오토 액셀 '+(autoAccel?'ON':'OFF');
+  const b=$('btnAuto'); if(b)b.textContent='🚗 오토 액셀: '+(autoAccel?'켜짐':'꺼짐');
+}
+function setAutoAccel(v){autoAccel=v;store.write('autoAccel2',v);syncAutoUI();
+  ui.toast(v?'오토 액셀 ON — 브레이크(−)만 조작하세요':'오토 액셀 OFF — + 버튼으로 가속');}
+/* 손가락마다 가장 가까운 버튼 1개만 판정 (인접 버튼 오입력 방지) */
+function nearestBtn(x,y){
+  let best=null,bd=1e9;
+  for(const [id,k] of T_BTNS){
+    const r=$(id).getBoundingClientRect();
+    const cx=(r.left+r.right)/2,cy=(r.top+r.bottom)/2;
+    const rad=Math.max(r.width,r.height)/2+18;
+    const d=Math.hypot(x-cx,y-cy);
+    if(d<=rad&&d<bd){bd=d;best=k;}
   }
-  T_BTNS.forEach(([id,k])=>$(id).classList.toggle('press',!!tstate[k]));
-  if(tstate.RST&&!prevRst&&!rstLatch){rstLatch=true;game.resetCar();}
-  if(!tstate.RST)rstLatch=false;
+  return best;
 }
-function touchZoneHit(x,y){
-  for(const [id] of T_BTNS){const r=$(id).getBoundingClientRect();
-    if(x>=r.left-16&&x<=r.right+16&&y>=r.top-16&&y<=r.bottom+16)return true;}
-  return false;
+function refreshTouchState(){
+  const prev={RST:tstate.RST,AUTO:tstate.AUTO};
+  for(const k in tstate)tstate[k]=0;
+  for(const p of activePts.values()){
+    const k=nearestBtn(p.x,p.y);
+    if(k)tstate[k]=1;
+  }
+  T_BTNS.forEach(([id,k])=>{if(k!=='AUTO')$(id).classList.toggle('press',!!tstate[k]);});
+  if(tstate.RST&&!prev.RST&&!latch.RST){latch.RST=true;game.resetCar();}
+  if(!tstate.RST)latch.RST=false;
+  if(tstate.AUTO&&!prev.AUTO&&!latch.AUTO){latch.AUTO=true;setAutoAccel(!autoAccel);}
+  if(!tstate.AUTO)latch.AUTO=false;
 }
+function touchZoneHit(x,y){return nearestBtn(x,y)!==null;}
 addEventListener('pointerdown',e=>{
   if(!touchEl.classList.contains('on')||e.pointerType==='mouse'&&e.button!==0)return;
   if(touchZoneHit(e.clientX,e.clientY)){
@@ -861,11 +886,27 @@ const ui={
 /* =====================================================================
    RENDER
    ===================================================================== */
-const cvs=$('game'),ctx=cvs.getContext('2d');
+const cvs=$('game'),ctx=cvs.getContext('2d',{alpha:false,desynchronized:true});
 let W=0,H=0,DPR=1;
-function resize(){DPR=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;
-  cvs.width=W*DPR;cvs.height=H*DPR;cvs.style.width=W+'px';cvs.style.height=H+'px';}
-addEventListener('resize',resize);resize();
+/* 동적 해상도: 프레임이 밀리면 내부 해상도를 낮춰 부드러움 우선 (저사양 폰 대응) */
+const DPR_MAX=Math.min(devicePixelRatio||1,2);
+let dynDPR=parseFloat(new URLSearchParams(location.search).get('dpr'))||DPR_MAX;
+function resize(){DPR=dynDPR;W=innerWidth;H=innerHeight;
+  cvs.width=Math.round(W*DPR);cvs.height=Math.round(H*DPR);
+  cvs.style.width=W+'px';cvs.style.height=H+'px';
+  mmKey='';}
+addEventListener('resize',resize);
+let fpsEma=60,fpsCheckT=0;
+function adaptRes(dt){
+  fpsEma=lerp(fpsEma,1/Math.max(dt,1e-3),.05);
+  fpsCheckT+=dt;
+  if(fpsCheckT<1.2)return;
+  fpsCheckT=0;
+  if(fpsEma<44&&dynDPR>0.7){
+    const step=fpsEma<28?0.4:0.2;
+    dynDPR=Math.max(0.7,+(dynDPR-step).toFixed(2));resize();
+  }else if(fpsEma>56&&dynDPR<DPR_MAX){dynDPR=Math.min(DPR_MAX,+(dynDPR+0.1).toFixed(2));resize();}
+}
 
 /* 트랙 Path2D 프리컴퓨트 */
 const R=(()=>{
@@ -894,23 +935,21 @@ const R=(()=>{
   // 센터 대시
   const dash=new Path2D();
   for(let i=0;i<N;i+=6){const a=pts[i],b=pts[(i+2)%N];dash.moveTo(a[0],a[1]);dash.lineTo(b[0],b[1]);}
-  // 연석 블록
-  const curbR=[],curbW=[];
+  // 연석 블록 — 색상별 통합 Path2D (프레임당 fill 2회)
+  const curbRP=new Path2D(),curbWP=new Path2D();
   for(const c of track.curbs){
     for(let i=c.a;i<c.b;i+=2){
-      const j=i%N,k=track.kap[j],side=Math.sign(k);       // 인코스 연석
-      for(const sd of [side,-side*0]){ if(sd===0)continue;
-        const w2=width[j]/2,n=nrm[j],t=track.tan[j];
-        const bx=pts[j][0]+n[0]*w2*sd, by=pts[j][1]+n[1]*w2*sd;
-        const q=new Path2D();
-        const cw=2.0,cl=track.step*2;
-        q.moveTo(bx-t[0]*cl/2-n[0]*0*sd,           by-t[1]*cl/2);
-        q.lineTo(bx+t[0]*cl/2,                      by+t[1]*cl/2);
-        q.lineTo(bx+t[0]*cl/2+n[0]*cw*sd,           by+t[1]*cl/2+n[1]*cw*sd);
-        q.lineTo(bx-t[0]*cl/2+n[0]*cw*sd,           by-t[1]*cl/2+n[1]*cw*sd);
-        q.closePath();
-        ((i>>1)%2?curbR:curbW).push(q);
-      }
+      const j=i%N,k=track.kap[j],sd=Math.sign(k);          // 인코스 연석
+      if(!sd)continue;
+      const w2=width[j]/2,n=nrm[j],t=track.tan[j];
+      const bx=pts[j][0]+n[0]*w2*sd, by=pts[j][1]+n[1]*w2*sd;
+      const q=(i>>1)%2?curbRP:curbWP;
+      const cw=2.0,cl=track.step*2;
+      q.moveTo(bx-t[0]*cl/2,             by-t[1]*cl/2);
+      q.lineTo(bx+t[0]*cl/2,             by+t[1]*cl/2);
+      q.lineTo(bx+t[0]*cl/2+n[0]*cw*sd,  by+t[1]*cl/2+n[1]*cw*sd);
+      q.lineTo(bx-t[0]*cl/2+n[0]*cw*sd,  by-t[1]*cl/2+n[1]*cw*sd);
+      q.closePath();
     }
   }
   // 조명 스프라이트
@@ -956,25 +995,147 @@ const R=(()=>{
   const skg=skid.getContext('2d');skg.lineCap='round';
   function drawMark(x1,y1,x2,y2,a){skg.strokeStyle=`rgba(8,9,12,${a})`;skg.lineWidth=.42*SK;
     skg.beginPath();skg.moveTo((x1-minX)*SK,(y1-minY)*SK);skg.lineTo((x2-minX)*SK,(y2-minY)*SK);skg.stroke();}
-  // 관중석/시설 지오메트리 (메인 스트레이트 남측)
   const sfP=pts[track.sfIdx];
-  return {asphalt,runoff,eL,eR,dash,curbR,curbW,poolSpr,headSpr,towerSpr,skid,skg,drawMark,minX,minY,SK,bounds:[minX,minY,maxX,maxY],sfP,tires,trees};
+  // 헤드라이트 빔 스프라이트 (프레임당 그라디언트 생성 제거)
+  const beamSpr=(()=>{const bw=37,bh=CAR_W*5.2,S=4;
+    const c=document.createElement('canvas');c.width=bw*S;c.height=bh*S;
+    const g=c.getContext('2d');g.scale(S,S);
+    const gr=g.createLinearGradient(0,0,bw,0);
+    gr.addColorStop(0,'rgba(255,246,214,.34)');gr.addColorStop(1,'rgba(255,246,214,0)');
+    g.fillStyle=gr;
+    g.beginPath();g.moveTo(0,bh/2-CAR_W*.32);g.lineTo(bw,0);g.lineTo(bw,bh);g.lineTo(0,bh/2+CAR_W*.32);g.closePath();g.fill();
+    return c;})();
+  /* ---- 통합 정적 월드 베이크: 지면·데코·노면·연석·S/F까지 비트맵 한 장 ----
+     (풀스크린 레이어 패스를 줄여 저사양 기기에서 프레임을 확보) */
+  const WB=3.5;
+  const world=document.createElement('canvas');
+  world.width=Math.ceil((maxX-minX)*WB);world.height=Math.ceil((maxY-minY)*WB);
+  {
+    const g=world.getContext('2d');
+    g.setTransform(WB,0,0,WB,-minX*WB,-minY*WB);
+    // 대지 + 잔디 스트라이프
+    g.fillStyle='#0a1710';g.fillRect(minX,minY,maxX-minX,maxY-minY);
+    g.save();g.translate((minX+maxX)/2,(minY+maxY)/2);g.rotate(.35);
+    g.fillStyle='rgba(190,235,205,.030)';
+    const diag=hyp(maxX-minX,maxY-minY);
+    for(let sx=-diag/2;sx<diag/2;sx+=56)g.fillRect(sx,-diag/2,28,diag);
+    g.restore();
+    // 주차장 (동측)
+    g.fillStyle='#0d1420';g.fillRect(maxX-170,minY+24,130,80);
+    // 수목
+    for(const t of trees){
+      g.fillStyle=`rgba(14,34,22,${.55+t[3]*.3})`;
+      g.beginPath();g.arc(t[0],t[1],t[2],0,TAU);g.fill();
+      g.fillStyle='rgba(40,72,50,.25)';
+      g.beginPath();g.arc(t[0]-t[2]*.25,t[1]-t[2]*.25,t[2]*.55,0,TAU);g.fill();
+    }
+    // 조명 풀
+    for(const l of track.lights)g.drawImage(poolSpr,l.x-46,l.y-46,92,92);
+    // 노면
+    g.fillStyle='#171b23';g.fill(runoff);
+    g.fillStyle='#22262f';g.fill(asphalt);
+    // 연석
+    g.fillStyle='#c8323c';g.fill(curbRP);
+    g.fillStyle='#dfe3e8';g.fill(curbWP);
+    // S/F 체커 + 갠트리 + 그리드 박스 (정적)
+    {
+      const i=track.sfIdx,p=pts[i],n=nrm[i],t=track.tan[i],w=width[i]/2;
+      g.save();g.translate(p[0],p[1]);g.rotate(Math.atan2(t[1],t[0]));
+      for(let a=0;a<2;a++)for(let b=-6;b<6;b++){
+        g.fillStyle=(a+b)%2?'#e8ecf2':'#12141a';
+        g.fillRect(a*1.1-1.1,b*w/6,1.1,w/6);}
+      g.fillStyle='rgba(90,106,130,.95)';
+      g.fillRect(-.55,-w-3.2,1.1,3.2);g.fillRect(-.55,w,1.1,3.2);
+      g.fillStyle='rgba(120,140,170,.28)';g.fillRect(-.8,-w,1.6,w*2);
+      for(let b=-5;b<5;b++){g.fillStyle='rgba(230,240,255,.5)';g.fillRect(-.18,b*w/5+w/10-.25,.36,.5);}
+      g.restore();
+      g.strokeStyle='rgba(220,228,240,.30)';g.lineWidth=.16;
+      for(let k=0;k<8;k++){
+        const gs=(track.sfS-16-k*7+track.len)%track.len;
+        const gi=Math.floor(gs/track.step)%track.N;
+        const gp=pts[gi],gn=nrm[gi],gt=track.tan[gi];
+        const off=(k%2?-2.7:2.7);
+        g.save();g.translate(gp[0]+gn[0]*off,gp[1]+gn[1]*off);g.rotate(Math.atan2(gt[1],gt[0]));
+        g.strokeRect(-2.6,-1.25,5.2,2.5);g.restore();
+      }
+    }
+    // 타이어 배리어
+    for(const tb of tires){
+      g.fillStyle='#101319';g.beginPath();g.arc(tb[0],tb[1],1.05,0,TAU);g.fill();
+      g.strokeStyle='rgba(90,100,120,.5)';g.lineWidth=.16;g.stroke();
+    }
+    // 관중석 (정적 관중 + 고정 플래시)
+    let seed=13;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
+    for(let seg=0;seg<10;seg++){
+      const i=(track.sfIdx+((seg-5)*14)+track.N)%track.N;
+      const p=pts[i],n=nrm[i];
+      const x=p[0]-n[0]*(width[i]/2+9),y=p[1]-n[1]*(width[i]/2+9);
+      g.save();g.translate(x,y);g.rotate(Math.atan2(track.tan[i][1],track.tan[i][0]));
+      g.fillStyle='#141b28';g.fillRect(-20,-3.4,40,7);
+      for(let r=0;r<3;r++)for(let cQ=0;cQ<13;cQ++){
+        g.fillStyle=rnd()>.94?'rgba(255,255,240,.9)':`hsla(${(seg*40+cQ*25)%360},45%,${38+r*8}%,.75)`;
+        g.fillRect(-19+cQ*3,-2.9+r*2.2,2.2,1.5);
+      }
+      g.restore();
+    }
+    // 피트 (북측)
+    for(let seg=0;seg<6;seg++){
+      const i=(track.sfIdx+((seg-3)*13)+track.N)%track.N;
+      const p=pts[i],n=nrm[i];
+      const x=p[0]+n[0]*(width[i]/2+7),y=p[1]+n[1]*(width[i]/2+7);
+      g.save();g.translate(x,y);g.rotate(Math.atan2(track.tan[i][1],track.tan[i][0]));
+      g.fillStyle='#10151f';g.fillRect(-17,-3,34,6);
+      g.fillStyle='rgba(255,220,150,.5)';
+      for(let g2=0;g2<8;g2++)g.fillRect(-16+g2*4.2,2.2,2.6,.5);
+      g.restore();
+    }
+  }
+  /* 회전 텍스트 스프라이트 (코너 라벨·거리 보드) — 글리프 재래스터 방지 */
+  function textSprite(draw,wM,hM){const S=14;
+    const c=document.createElement('canvas');c.width=Math.ceil(wM*S);c.height=Math.ceil(hM*S);
+    const g=c.getContext('2d');g.setTransform(S,0,0,S,wM*S/2,hM*S/2);draw(g);
+    return {c,wM,hM};}
+  const cornerSpr=track.corners.map(cc=>textSprite(g=>{
+    g.fillStyle='rgba(9,14,24,.85)';g.beginPath();g.arc(0,0,2.3,0,TAU);g.fill();
+    g.strokeStyle='rgba(90,190,255,.5)';g.lineWidth=.24;g.stroke();
+    g.fillStyle='#bfe3ff';g.font='900 2.6px sans-serif';g.textAlign='center';g.textBaseline='middle';
+    g.fillText(cc.n,0,.12);},5.2,5.2));
+  const boardSpr={};
+  for(const lb of ['100','50'])boardSpr[lb]=textSprite(g=>{
+    g.fillStyle='#0d2f5e';g.fillRect(-2,-1.4,4,2.8);
+    g.fillStyle='#fff';g.font='900 1.9px sans-serif';g.textAlign='center';g.textBaseline='middle';
+    g.fillText(lb,0,.1);},4.4,3.2);
+  return {eL,eR,dash,poolSpr,headSpr,towerSpr,beamSpr,world,WB,cornerSpr,boardSpr,
+          skid,skg,drawMark,minX,minY,SK,bounds:[minX,minY,maxX,maxY],sfP,tires,trees};
 })();
 
-/* 별하늘 */
-const stars=[];for(let i=0;i<130;i++)stars.push([Math.random(),Math.random(),Math.random()*1.4+.3]);
+/* 별하늘 — 캐시된 비트맵 한 장 (하늘 그라디언트 포함) */
+let skyC=null,skyKey='';
+function skyCanvas(){
+  const key=W+'x'+H;
+  if(skyKey===key)return skyC;
+  skyKey=key;
+  skyC=document.createElement('canvas');skyC.width=Math.max(1,W>>1);skyC.height=Math.max(1,H>>1);
+  const g=skyC.getContext('2d');
+  const bg=g.createLinearGradient(0,0,0,skyC.height);
+  bg.addColorStop(0,'#04070f');bg.addColorStop(1,'#0a1220');
+  g.fillStyle=bg;g.fillRect(0,0,skyC.width,skyC.height);
+  let seed=5;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
+  for(let i=0;i<130;i++){
+    g.globalAlpha=.35+rnd()*.6;g.fillStyle='#cfe2ff';
+    g.fillRect(rnd()*skyC.width,rnd()*skyC.height*.9,(rnd()*1.4+.3)/2,(rnd()*1.4+.3)/2);
+  }
+  return skyC;
+}
 
 function drawCar(c,alpha){
   ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.ang);
   if(alpha!=null)ctx.globalAlpha=alpha;
   const L=CAR_LEN,Wd=CAR_W;
-  // 헤드라이트 빔
+  // 헤드라이트 빔 (스프라이트)
   if(alpha==null){
     ctx.save();ctx.globalCompositeOperation='lighter';
-    const g=ctx.createLinearGradient(L/2,0,L/2+34,0);
-    g.addColorStop(0,'rgba(255,246,214,.34)');g.addColorStop(1,'rgba(255,246,214,0)');
-    ctx.fillStyle=g;
-    ctx.beginPath();ctx.moveTo(L/2-1,-Wd*.32);ctx.lineTo(L/2+36,-Wd*2.6);ctx.lineTo(L/2+36,Wd*2.6);ctx.lineTo(L/2-1,Wd*.32);ctx.closePath();ctx.fill();
+    ctx.drawImage(R.beamSpr,L/2-1,-Wd*2.6,37,Wd*5.2);
     ctx.restore();
   }
   // 그림자
@@ -1008,15 +1169,19 @@ function drawCar(c,alpha){
   ctx.restore();
 }
 
+/* ?prof=1 구간 프로파일러 · ?skip=a,b 절제 테스트 */
+const _qs=new URLSearchParams(location.search);
+const PROF=_qs.get('prof')==='1';
+const SKIP=new Set((_qs.get('skip')||'').split(',').filter(Boolean));
+const profT={};window.__profT=profT;
+function pf(n,f){ if(SKIP.has(n)||SKIP.has('all'))return;
+  if(!PROF)return f();
+  const t=performance.now();f();profT[n]=(profT[n]||0)+performance.now()-t; }
+
 function render(cam,world,tNow){
   ctx.setTransform(DPR,0,0,DPR,0,0);
-  // 밤하늘 배경
-  const bg=ctx.createLinearGradient(0,0,0,H);
-  bg.addColorStop(0,'#04070f');bg.addColorStop(1,'#0a1220');
-  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
-  for(const s of stars){ctx.globalAlpha=.5+.5*Math.sin(tNow*.001+s[0]*40);
-    ctx.fillStyle='#cfe2ff';ctx.fillRect(s[0]*W,s[1]*H*.9,s[2],s[2]);}
-  ctx.globalAlpha=1;
+  // 밤하늘 배경 (캐시 비트맵)
+  pf('sky',()=>{ctx.drawImage(skyCanvas(),0,0,W,H);});
 
   ctx.save();
   ctx.translate(W/2,H*.60);
@@ -1025,23 +1190,10 @@ function render(cam,world,tNow){
   ctx.translate(-cam.x,-cam.y);
 
   const [bx0,by0,bx1,by1]=R.bounds;
-  // 대지 + 잔디 스트라이프
-  ctx.fillStyle='#0a1710';ctx.fillRect(bx0,by0,bx1-bx0,by1-by0);
-  ctx.save();ctx.translate((bx0+bx1)/2,(by0+by1)/2);ctx.rotate(.35);
-  ctx.fillStyle='rgba(190,235,205,.030)';
-  const diag=hyp(bx1-bx0,by1-by0);
-  for(let sx=-diag/2;sx<diag/2;sx+=56)ctx.fillRect(sx,-diag/2,28,diag);
-  ctx.restore();
-  // 외곽 시설: 주차장(동측)
-  ctx.fillStyle='#0d1420';ctx.fillRect(bx1-170,by0+24,130,80);
-  // 수목
-  for(const t of R.trees){
-    ctx.fillStyle=`rgba(14,34,22,${.55+t[3]*.3})`;
-    ctx.beginPath();ctx.arc(t[0],t[1],t[2],0,TAU);ctx.fill();
-    ctx.fillStyle='rgba(40,72,50,.25)';
-    ctx.beginPath();ctx.arc(t[0]-t[2]*.25,t[1]-t[2]*.25,t[2]*.55,0,TAU);ctx.fill();
-  }
+  // 정적 월드 (지면·데코·노면·연석·S/F·관중석) — 비트맵 한 장
+  pf('bgU',()=>ctx.drawImage(R.world,bx0,by0,bx1-bx0,by1-by0));
   // 에버랜드 방향 관람차 실루엣 (북서)
+  pf('fer',()=>{
   (function ferris(){
     const fx0=bx0+52,fy0=by0+44,r=30;
     ctx.save();ctx.translate(fx0,fy0);ctx.strokeStyle='rgba(120,150,210,.28)';ctx.lineWidth=1.4;
@@ -1052,120 +1204,47 @@ function render(cam,world,tNow){
       ctx.fillStyle=`hsla(${hue},90%,65%,.8)`;
       ctx.beginPath();ctx.arc(Math.cos(a)*r,Math.sin(a)*r,2.1,0,TAU);ctx.fill();}
     ctx.restore();
-  })();
-  // 조명 풀 (트랙 바닥 밝힘)
-  for(const l of track.lights){
-    ctx.drawImage(R.poolSpr,l.x-46,l.y-46,92,92);
-  }
-  // 런오프/아스팔트
-  ctx.fillStyle='#171b23';ctx.fill(R.runoff);
-  ctx.fillStyle='#22262f';ctx.fill(R.asphalt);
+  })();});
   // 스키드 마크
-  ctx.drawImage(R.skid,R.minX,R.minY,R.skid.width/R.SK,R.skid.height/R.SK);
-  // 연석
-  ctx.fillStyle='#c8323c';for(const q of R.curbR)ctx.fill(q);
-  ctx.fillStyle='#dfe3e8';for(const q of R.curbW)ctx.fill(q);
-  // 라인
+  pf('skid',()=>ctx.drawImage(R.skid,R.minX,R.minY,R.skid.width/R.SK,R.skid.height/R.SK));
+  // 트랙 라인 (얇은 벡터 오버레이 — 선명도 유지)
+  pf('curb',()=>{
   ctx.lineWidth=.3;ctx.strokeStyle='rgba(232,238,246,.75)';ctx.stroke(R.eL);ctx.stroke(R.eR);
-  ctx.lineWidth=.22;ctx.setLineDash([3,4.5]);ctx.strokeStyle='rgba(210,220,235,.22)';ctx.stroke(R.dash);ctx.setLineDash([]);
+  ctx.lineWidth=.22;ctx.setLineDash([3,4.5]);ctx.strokeStyle='rgba(210,220,235,.22)';ctx.stroke(R.dash);ctx.setLineDash([]);});
 
-  // S/F 라인 + 그리드
-  (function sf(){
-    const i=track.sfIdx,p=track.pts[i],n=track.nrm[i],t=track.tan[i],w=track.width[i]/2;
-    ctx.save();ctx.translate(p[0],p[1]);ctx.rotate(Math.atan2(t[1],t[0]));
-    for(let a=0;a<2;a++)for(let b=-6;b<6;b++){
-      ctx.fillStyle=(a+b)%2?'#e8ecf2':'#12141a';
-      ctx.fillRect(a*1.1-1.1,b*w/6,1.1,w/6);}
-    // 스타트 갠트리: 양측 슬림 파일런 + 반투명 오버헤드 트러스
-    ctx.fillStyle='rgba(90,106,130,.95)';
-    ctx.fillRect(-.55,-w-3.2,1.1,3.2);ctx.fillRect(-.55,w,1.1,3.2);
-    ctx.fillStyle='rgba(120,140,170,.28)';ctx.fillRect(-.8,-w,1.6,w*2);
-    for(let b=-5;b<5;b++){ctx.fillStyle='rgba(230,240,255,.5)';ctx.fillRect(-.18,b*w/5+w/10-.25,.36,.5);}
-    ctx.restore();
-    // 그리드 박스
-    ctx.strokeStyle='rgba(220,228,240,.30)';ctx.lineWidth=.16;
-    for(let k=0;k<8;k++){
-      const gs=(track.sfS-16-k*7+track.len)%track.len;
-      const gi=Math.floor(gs/track.step)%track.N;
-      const gp=track.pts[gi],gn=track.nrm[gi],gt=track.tan[gi];
-      const off=(k%2?-2.7:2.7);
-      ctx.save();ctx.translate(gp[0]+gn[0]*off,gp[1]+gn[1]*off);ctx.rotate(Math.atan2(gt[1],gt[0]));
-      ctx.strokeRect(-2.6,-1.25,5.2,2.5);ctx.restore();
-    }
-  })();
-
-  // 거리 보드 (T1, T3 앞 100/50m)
+  // 거리 보드 + 코너 번호 (스프라이트 빌보드)
+  pf('sf',()=>{
   function board(sPos,label){
     const i=Math.floor(((sPos%track.len)+track.len)/track.step)%track.N;
     const p=track.pts[i],n=track.nrm[i];
     const off=track.width[i]/2+2.2;
-    ctx.save();ctx.translate(p[0]+n[0]*off,p[1]+n[1]*off);
-    ctx.rotate(cam.carUp?-cam.rot:0);
-    ctx.fillStyle='#0d2f5e';ctx.fillRect(-2,-1.4,4,2.8);
-    ctx.fillStyle='#fff';ctx.font='900 1.9px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText(label,0,.1);ctx.restore();
+    const s=R.boardSpr[label];
+    ctx.save();ctx.translate(p[0]+n[0]*off,p[1]+n[1]*off);ctx.rotate(-cam.rot);
+    ctx.drawImage(s.c,-s.wM/2,-s.hM/2,s.wM,s.hM);ctx.restore();
   }
   const t1S=track.corners[0].i*track.step, t7S=track.corners[6].i*track.step;
   board(t1S-100,'100');board(t1S-50,'50');board(t7S-90,'100');
-  // 코너 번호 보드
-  ctx.font='900 2.6px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
-  for(const c of track.corners){
+  for(let ci=0;ci<track.corners.length;ci++){
+    const c=track.corners[ci];
     const p=track.pts[c.i],n=track.nrm[c.i],k=track.kap[c.i];
     const sgn=-Math.sign(k)||1;                        // 아웃코스 쪽
     const off=track.width[c.i]/2+3.4;
-    const x=p[0]+n[0]*off*sgn,y=p[1]+n[1]*off*sgn;
-    ctx.save();ctx.translate(x,y);ctx.rotate(-cam.rot);
-    ctx.fillStyle='rgba(9,14,24,.85)';ctx.beginPath();ctx.arc(0,0,2.3,0,TAU);ctx.fill();
-    ctx.strokeStyle='rgba(90,190,255,.5)';ctx.lineWidth=.24;ctx.stroke();
-    ctx.fillStyle='#bfe3ff';ctx.fillText(c.n,0,.12);ctx.restore();
-  }
+    const s=R.cornerSpr[ci];
+    ctx.save();ctx.translate(p[0]+n[0]*off*sgn,p[1]+n[1]*off*sgn);ctx.rotate(-cam.rot);
+    ctx.drawImage(s.c,-s.wM/2,-s.hM/2,s.wM,s.hM);ctx.restore();
+  }});
 
-  // 타이어 배리어
-  for(const tb of R.tires){
-    ctx.fillStyle='#101319';ctx.beginPath();ctx.arc(tb[0],tb[1],1.05,0,TAU);ctx.fill();
-    ctx.strokeStyle='rgba(90,100,120,.5)';ctx.lineWidth=.16;ctx.stroke();
-  }
-  // 관중석 (메인 스트레이트 남측 = 바깥)
-  (function stands(){
-    const i0=track.nearest(CP[5][0]*1,CP[5][1]*1);
-    for(let seg=0;seg<10;seg++){
-      const i=(track.sfIdx+((seg-5)*14)+track.N)%track.N;
-      const p=track.pts[i],n=track.nrm[i];
-      // 남측 = 진행(서쪽)기준 좌측 = -n
-      const x=p[0]-n[0]*(track.width[i]/2+9),y=p[1]-n[1]*(track.width[i]/2+9);
-      ctx.save();ctx.translate(x,y);ctx.rotate(Math.atan2(track.tan[i][1],track.tan[i][0]));
-      ctx.fillStyle='#141b28';ctx.fillRect(-20,-3.4,40,7);
-      for(let r=0;r<3;r++)for(let cQ=0;cQ<13;cQ++){
-        const tw=Math.sin(tNow*.004+seg*7+r*3+cQ*1.7);
-        ctx.fillStyle=tw>.88?'rgba(255,255,240,.9)':`hsla(${(seg*40+cQ*25)%360},45%,${38+r*8}%,.75)`;
-        ctx.fillRect(-19+cQ*3,-2.9+r*2.2,2.2,1.5);
-      }
-      ctx.restore();
-    }
-    // 피트 (북측 = 안쪽)
-    for(let seg=0;seg<6;seg++){
-      const i=(track.sfIdx+((seg-3)*13)+track.N)%track.N;
-      const p=track.pts[i],n=track.nrm[i];
-      const x=p[0]+n[0]*(track.width[i]/2+7),y=p[1]+n[1]*(track.width[i]/2+7);
-      ctx.save();ctx.translate(x,y);ctx.rotate(Math.atan2(track.tan[i][1],track.tan[i][0]));
-      ctx.fillStyle='#10151f';ctx.fillRect(-17,-3,34,6);
-      ctx.fillStyle='rgba(255,220,150,.5)';
-      for(let g2=0;g2<8;g2++)ctx.fillRect(-16+g2*4.2,2.2,2.6,.5);
-      ctx.restore();
-    }
-  })();
-
-  // 고스트
+  // 고스트 + 차량
+  pf('cars',()=>{
   if(world.ghostPos){ const g=world.ghostPos;
     ctx.save();ctx.globalAlpha=.38;
     drawCar({x:g[0],y:g[1],ang:g[2],body:'#8fd8ff',stripe:'#eaffff',num:'',brakeVis:false},.38);
     ctx.restore(); }
-
-  // 차량
   for(const c of world.cars)if(c!==world.player)drawCar(c);
-  drawCar(world.player);
+  drawCar(world.player);});
 
   // 파티클
+  pf('fx',()=>{
   for(const p of fx.parts){
     const k=1-p.t/p.life;
     if(p.kind===0){ctx.fillStyle=`rgba(255,${190+Math.random()*60|0},80,${k})`;ctx.fillRect(p.x,p.y,.5,.5);}
@@ -1188,39 +1267,46 @@ function render(cam,world,tNow){
   for(const l of track.lights){
     ctx.drawImage(R.towerSpr,l.x-14,l.y-14,28,28);
     ctx.fillStyle='#eaf4ff';ctx.fillRect(l.x-.9,l.y-.9,1.8,1.8);
-  }
+  }});
   ctx.restore();
   ctx.restore();
 
-  renderMinimap(world);
+  pf('mmap',()=>renderMinimap(world));
 }
 
-/* 미니맵 (북쪽 위 고정) */
-const mmC=document.createElement('canvas');
+/* 미니맵 (북쪽 위 고정) — 베이스는 캐시, 차량 점만 매 프레임 */
+let mmBase=null,mmKey='';
 function renderMinimap(world){
   const [bx0,by0,bx1,by1]=R.bounds;
   const mw=Math.min(W*.30,235),sc=mw/(bx1-bx0),mh=(by1-by0)*sc;
   const ox=14,oy=H-mh-14-(isTouch?110:0);
+  const key=Math.round(mw)+'/'+DPR;
+  if(key!==mmKey){
+    mmKey=key;
+    mmBase=document.createElement('canvas');
+    mmBase.width=Math.ceil((mw+16)*DPR);mmBase.height=Math.ceil((mh+16)*DPR);
+    const g=mmBase.getContext('2d');
+    g.scale(DPR,DPR);g.translate(8,8);
+    g.fillStyle='rgba(8,12,20,.55)';
+    g.beginPath();g.roundRect(-8,-8,mw+16,mh+16,10);g.fill();
+    g.translate(-bx0*sc,-by0*sc);g.scale(sc,sc);
+    g.lineWidth=26;g.strokeStyle='rgba(30,40,58,.9)';g.lineJoin='round';
+    const path=new Path2D();
+    for(let i=0;i<=track.N;i+=3){const p=track.pts[i%track.N];i===0?path.moveTo(p[0],p[1]):path.lineTo(p[0],p[1]);}
+    g.stroke(path);
+    g.lineWidth=14;g.strokeStyle='#5b7794';g.stroke(path);
+    const sp=track.pts[track.sfIdx];g.fillStyle='#fff';
+    g.save();g.translate(sp[0],sp[1]);g.rotate(Math.atan2(track.tan[track.sfIdx][1],track.tan[track.sfIdx][0]));
+    g.fillRect(-2,-14,4,28);g.restore();
+    g.font='900 26px sans-serif';g.textAlign='center';g.fillStyle='#9fd4ff';
+    for(const c of [0,1,6,8]){const cc=track.corners[c],p=track.pts[cc.i],n=track.nrm[cc.i],k=track.kap[cc.i];
+      const sgn=-Math.sign(k)||1;g.fillText(cc.n,p[0]+n[0]*sgn*46,p[1]+n[1]*sgn*46+9);}
+  }
   ctx.setTransform(DPR,0,0,DPR,0,0);
-  ctx.save();ctx.translate(ox,oy);
+  ctx.save();
   ctx.globalAlpha=.92;
-  ctx.fillStyle='rgba(8,12,20,.55)';
-  ctx.beginPath();ctx.roundRect(-8,-8,mw+16,mh+16,10);ctx.fill();
-  ctx.translate(-bx0*sc,-by0*sc);ctx.scale(sc,sc);
-  ctx.lineWidth=26;ctx.strokeStyle='rgba(30,40,58,.9)';ctx.lineJoin='round';
-  const path=new Path2D();
-  for(let i=0;i<=track.N;i+=3){const p=track.pts[i%track.N];i===0?path.moveTo(p[0],p[1]):path.lineTo(p[0],p[1]);}
-  ctx.stroke(path);
-  ctx.lineWidth=14;ctx.strokeStyle='#5b7794';ctx.stroke(path);
-  // S/F
-  const sp=track.pts[track.sfIdx];ctx.fillStyle='#fff';
-  ctx.save();ctx.translate(sp[0],sp[1]);ctx.rotate(Math.atan2(track.tan[track.sfIdx][1],track.tan[track.sfIdx][0]));
-  ctx.fillRect(-2,-14,4,28);ctx.restore();
-  // 코너 라벨
-  ctx.font='900 26px sans-serif';ctx.textAlign='center';ctx.fillStyle='#9fd4ff';
-  for(const c of [0,1,6,8]){const cc=track.corners[c],p=track.pts[cc.i],n=track.nrm[cc.i],k=track.kap[cc.i];
-    const sgn=-Math.sign(k)||1;ctx.fillText(cc.n,p[0]+n[0]*sgn*46,p[1]+n[1]*sgn*46+9);}
-  // 고스트/AI/플레이어
+  ctx.drawImage(mmBase,ox-8,oy-8,mw+16,mh+16);
+  ctx.translate(ox-bx0*sc,oy-by0*sc);ctx.scale(sc,sc);
   if(world.ghostPos){ctx.fillStyle='#9fe8ff';ctx.beginPath();ctx.arc(world.ghostPos[0],world.ghostPos[1],13,0,TAU);ctx.fill();}
   for(const c of world.cars){ if(c===world.player)continue;
     ctx.fillStyle=c.body;ctx.beginPath();ctx.arc(c.x,c.y,13,0,TAU);ctx.fill();}
@@ -1626,24 +1712,29 @@ const game={
   },
   updateHUD(full){
     const p=this.player;if(!p)return;
+    if(SKIP.has('hud'))return;
+    const rpm01=clamp((Math.abs(p.vF)*3.6%42)/42*.85+Math.abs(p.vF)/track.VMAX/3.6*.3+ (input.throttle?.12:0),0,1);
+    // 엔진 사운드는 매 프레임
+    audio.engine(rpm01,input.throttle,p.isPlayer?1:0);
+    audio.skid(p.drift?clamp(p.slip/9,0,1):0);
+    // DOM 갱신은 ~30Hz로 스로틀 (레이아웃 비용)
+    const nowP=performance.now();
+    if(!full&&this._hudT&&nowP-this._hudT<33)return;
+    this._hudT=nowP;
     const tMs=this.time*1000;
     const running=p.lapStartT>0&&this.state==='run';
     $('lapTime').textContent=running?fmtMs(tMs-p.lapStartT):'0:00.000';
     // 델타 (고스트 대비)
     const dEl=$('delta');
-    if(this.mode==='ta'&&best&&running&&p.curLapValid){
-      // 현재 s 진행도 기반 간이 델타: 고스트가 같은 s에 도달한 시각과 비교 → 고스트 pos 기반 근사
-      if(this.ghostPos){
-        const gLoc=track.locate(this.ghostPos[0],this.ghostPos[1]);
-        let dd=p.s-gLoc.s;
-        if(dd>track.len/2)dd-=track.len;if(dd<-track.len/2)dd+=track.len;
-        const est=-dd/Math.max(Math.abs(p.vF),8)*1000;
-        dEl.textContent=fmtDelta(est);
-        dEl.className='mono '+(est<=0?'minus':'plus');
-      }
-    }else{dEl.textContent='';}
+    if(this.mode==='ta'&&best&&running&&p.curLapValid&&this.ghostPos){
+      const gLoc=track.locate(this.ghostPos[0],this.ghostPos[1]);
+      let dd=p.s-gLoc.s;
+      if(dd>track.len/2)dd-=track.len;if(dd<-track.len/2)dd+=track.len;
+      const est=-dd/Math.max(Math.abs(p.vF),8)*1000;
+      dEl.textContent=fmtDelta(est);
+      dEl.className='mono '+(est<=0?'minus':'plus');
+    }else if(dEl.textContent!==''){dEl.textContent='';}
     $('speed').innerHTML=Math.round(Math.abs(p.vF)*3.6)+'<small> km/h</small>';
-    const rpm01=clamp((Math.abs(p.vF)*3.6%42)/42*.85+Math.abs(p.vF)/track.VMAX/3.6*.3+ (input.throttle?.12:0),0,1);
     const gear=p.vF<-.5?'R':(Math.abs(p.vF)<.5?'N':String(1+Math.min(5,Math.floor(Math.abs(p.vF)*3.6/42))));
     $('gear').textContent=gear==='R'||gear==='N'?gear:gear+'단';
     $('rpmFill').style.width=(rpm01*100)+'%';
@@ -1651,16 +1742,12 @@ const game={
       $('lastBox').textContent=fmtMs(p.lastLap);
       $('bestBox').textContent=fmtMs(best?Math.min(best.ms,p.bestLap||Infinity):p.bestLap);
       if(this.mode==='race'){
-        $('posBox').textContent='P'+this.position(p);
         $('lapBox').textContent=Math.min(p.lap+1,this.raceLaps)+' / '+this.raceLaps;
       }else{
         $('posBox').textContent='TA';
         $('lapBox').textContent=p.lapStartT>0?('LAP '+(p.lap+1)):'OUT LAP';
       }
     }
-    // 엔진 사운드
-    audio.engine(rpm01,input.throttle,p.isPlayer?1:0);
-    audio.skid(p.drift?clamp(p.slip/9,0,1):0);
     if(this.mode==='race'&&this.state==='run')$('posBox').textContent='P'+this.position(p);
   }
 };
@@ -1681,12 +1768,14 @@ function frame(now){
   requestAnimationFrame(frame);
   let dt=(now-lastT)/1000;lastT=now;
   if(dt>.09)dt=.09;
+  adaptRes(dt);
   if(game.state==='run'&&!game.paused){
     accum+=dt*TURBO;
     let n=0;
-    while(accum>=STEP&&n++<TURBO*14){accum-=STEP;game.simStep(STEP);}
-    game.updateHUD(false);
+    pf('sim',()=>{while(accum>=STEP&&n++<TURBO*14){accum-=STEP;game.simStep(STEP);}});
+    pf('hud',()=>game.updateHUD(false));
   }
+  if(PROF)profT._frames=(profT._frames||0)+1;
   if(game.state==='run'||game.state==='result'){
     render({x:game.camX,y:game.camY,rot:game.camRot,zoom:game.camZoom,carUp:true},game,now);
   }else{
@@ -1702,6 +1791,7 @@ function renderAttract(now){
   render({x:p[0],y:p[1],rot:-Math.atan2(t[1],t[0])-Math.PI/2,zoom:3.1*Math.min(W,H)/760*1.35,carUp:true},
          {cars:[],player:{x:-9999,y:-9999,ang:0,body:'#000',stripe:'#000',num:'',vF:0},ghostPos:null},now);
 }
+resize();
 requestAnimationFrame(frame);
 
 /* ---------- wire UI ---------- */
@@ -1722,10 +1812,8 @@ $('btnSaveName').onclick=()=>game.saveEntry();
 $('nameIn').addEventListener('keydown',e=>{if(e.key==='Enter')game.saveEntry();});
 $('btnResume').onclick=()=>game.togglePause();
 $('btnFinish').onclick=()=>{game.paused=false;$('scrPause').classList.add('hidden');game.showResult();};
-const syncAutoBtn=()=>{$('btnAuto').textContent='🚗 오토 액셀: '+(autoAccel?'켜짐':'꺼짐');};
-syncAutoBtn();
-$('btnAuto').onclick=()=>{autoAccel=!autoAccel;store.write('autoAccel',autoAccel);syncAutoBtn();
-  ui.toast(autoAccel?'오토 액셀 켜짐 — 브레이크(−)만 신경 쓰세요':'오토 액셀 꺼짐 — + 버튼으로 가속');};
+$('btnAuto').onclick=()=>setAutoAccel(!autoAccel);
+syncAutoUI();
 $('btnRestart').onclick=()=>{game.paused=false;$('scrPause').classList.add('hidden');
   game.mode==='ta'?game.startTA():game.startRace();};
 $('btnQuit').onclick=()=>{if(game.pendingEntry)game.saveEntry();
