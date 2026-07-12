@@ -1,0 +1,1673 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#070b12">
+<title>용인 나이트 레이스 — 에버랜드 스피드웨이 나이트코스 2.538km</title>
+<style>
+  :root{
+    --red:#ff3d2e; --cyan:#37e6ff; --gold:#ffd257; --green:#3dff8a;
+    --ink:#eef2f7; --dim:#9aa7b8; --panel:rgba(10,14,22,.86);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{width:100%;height:100%;overflow:hidden;background:#070b12;
+    font-family:"Pretendard","Apple SD Gothic Neo","Noto Sans KR",-apple-system,"Segoe UI",Roboto,sans-serif;
+    color:var(--ink);user-select:none;-webkit-user-select:none;touch-action:none}
+  canvas#game{position:fixed;inset:0;width:100%;height:100%;display:block}
+  .mono{font-family:ui-monospace,"SF Mono","Cascadia Mono",Consolas,"Roboto Mono",monospace;font-variant-numeric:tabular-nums}
+
+  /* ---------- overlay screens ---------- */
+  .screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(120% 100% at 50% 0%,rgba(10,16,28,.62),rgba(5,8,14,.9));
+    z-index:30;opacity:1;transition:opacity .25s}
+  .screen.hidden{opacity:0;pointer-events:none}
+  .card{width:min(880px,94vw);max-height:92vh;overflow:auto;background:var(--panel);
+    border:1px solid rgba(120,150,190,.16);border-radius:18px;padding:clamp(16px,3vw,34px);
+    box-shadow:0 30px 80px rgba(0,0,0,.6);backdrop-filter:blur(6px)}
+  .kicker{display:flex;align-items:center;gap:10px;color:var(--dim);font-weight:700;
+    letter-spacing:.22em;font-size:clamp(10px,1.4vw,13px)}
+  .kicker::before{content:"";width:26px;height:3px;background:var(--red);border-radius:2px}
+  h1{font-size:clamp(30px,6vw,58px);line-height:1.04;letter-spacing:-.02em;margin:10px 0 4px;font-weight:900}
+  h1 .night{color:transparent;-webkit-text-stroke:1.5px var(--cyan);text-stroke:1.5px var(--cyan)}
+  .sub{color:var(--dim);font-size:clamp(12px,1.8vw,15px);line-height:1.55}
+  .sub b{color:var(--ink)}
+  .facts{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 4px}
+  .chip{border:1px solid rgba(130,160,200,.25);border-radius:999px;padding:5px 12px;
+    font-size:clamp(10px,1.5vw,12.5px);color:#cfe0f2;background:rgba(30,44,66,.35)}
+  .chip b{color:var(--gold)}
+  .btnrow{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+  .btn{cursor:pointer;border:0;border-radius:12px;padding:14px 22px;font-weight:800;
+    font-size:clamp(14px,2vw,17px);letter-spacing:.02em;color:#fff;
+    background:linear-gradient(180deg,#ff5140,#e02a1c);box-shadow:0 8px 24px rgba(255,61,46,.35),inset 0 1px 0 rgba(255,255,255,.25);
+    transition:transform .08s, filter .15s}
+  .btn:hover{filter:brightness(1.08)} .btn:active{transform:translateY(2px) scale(.99)}
+  .btn.ghost{background:rgba(38,52,74,.7);box-shadow:inset 0 0 0 1px rgba(140,170,210,.3)}
+  .btn.cyan{background:linear-gradient(180deg,#28c9e8,#0d9fc4);box-shadow:0 8px 24px rgba(55,230,255,.25)}
+  .best-banner{margin-top:18px;padding:12px 16px;border-radius:12px;background:rgba(24,34,52,.6);
+    border:1px solid rgba(130,160,200,.18);display:flex;gap:18px;flex-wrap:wrap;align-items:center;
+    font-size:clamp(12px,1.7vw,14px);color:var(--dim)}
+  .best-banner .t{color:var(--gold);font-weight:800;font-size:clamp(15px,2.4vw,20px)}
+  .foot{margin-top:18px;color:#5c6b80;font-size:clamp(10px,1.4vw,11.5px);line-height:1.6}
+  .foot a{color:#7fa8d8;text-decoration:none}
+
+  /* ---------- guide / records ---------- */
+  .g-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;margin-top:14px}
+  @media (max-width:720px){.g-grid{grid-template-columns:1fr}}
+  #guideMap{width:100%;aspect-ratio:16/11;background:#0a101c;border-radius:12px;border:1px solid rgba(120,150,190,.16)}
+  .tips{display:flex;flex-direction:column;gap:7px;font-size:clamp(11px,1.6vw,13px);line-height:1.5;color:#c9d6e6}
+  .tips div{padding:7px 10px;background:rgba(24,34,52,.45);border-radius:9px;border-left:3px solid var(--red)}
+  .tips b{color:var(--cyan);font-family:ui-monospace,monospace}
+  table.lb{width:100%;border-collapse:collapse;margin-top:14px;font-size:clamp(12px,1.8vw,14.5px)}
+  table.lb th{color:var(--dim);font-weight:600;text-align:left;padding:7px 10px;border-bottom:1px solid rgba(120,150,190,.2);font-size:.85em;letter-spacing:.08em}
+  table.lb td{padding:8px 10px;border-bottom:1px solid rgba(120,150,190,.08)}
+  table.lb tr.me td{color:var(--gold);font-weight:800}
+  table.lb td.rank{color:var(--dim);width:44px}
+  .empty{color:#5c6b80;text-align:center;padding:26px 0}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:10;opacity:0;transition:opacity .3s}
+  #hud.on{opacity:1}
+  .hud-top{position:absolute;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);
+    display:flex;flex-direction:column;align-items:center;gap:2px}
+  #lapTime{font-size:clamp(26px,5vw,44px);font-weight:800;text-shadow:0 2px 14px rgba(0,0,0,.7)}
+  #delta{font-size:clamp(13px,2vw,17px);font-weight:800;height:1.3em}
+  #delta.plus{color:#ff6b5e}#delta.minus{color:var(--green)}
+  .hud-tl{position:absolute;top:calc(10px + env(safe-area-inset-top));left:14px;background:var(--panel);
+    border-radius:12px;padding:10px 14px;border:1px solid rgba(120,150,190,.14);min-width:150px}
+  .hud-tl .row{display:flex;justify-content:space-between;gap:16px;font-size:clamp(11px,1.6vw,13px);color:var(--dim);padding:1.5px 0}
+  .hud-tl .row b{color:var(--ink);font-weight:700}
+  .hud-tl .pos{font-size:clamp(20px,3vw,26px);font-weight:900;color:var(--gold)}
+  .hud-tr{position:absolute;top:calc(10px + env(safe-area-inset-top));right:14px;text-align:right}
+  #speed{font-size:clamp(34px,6vw,56px);font-weight:900;text-shadow:0 2px 16px rgba(0,0,0,.75);line-height:1}
+  #speed small{font-size:.34em;color:var(--dim);font-weight:700;letter-spacing:.1em}
+  #gear{font-size:clamp(13px,2vw,16px);color:var(--cyan);font-weight:800;letter-spacing:.15em}
+  #rpm{width:clamp(120px,16vw,180px);height:6px;background:rgba(255,255,255,.12);border-radius:3px;margin:7px 0 0 auto;overflow:hidden}
+  #rpmFill{height:100%;width:0%;background:linear-gradient(90deg,#37e6ff,#ffd257 70%,#ff3d2e);border-radius:3px}
+  #msg{position:absolute;top:26%;left:50%;transform:translateX(-50%);font-size:clamp(22px,5vw,46px);
+    font-weight:900;letter-spacing:.06em;text-align:center;text-shadow:0 4px 30px rgba(0,0,0,.8);white-space:nowrap}
+  #submsg{position:absolute;top:calc(26% + clamp(34px,6vw,58px));left:50%;transform:translateX(-50%);
+    font-size:clamp(13px,2.2vw,19px);font-weight:700;color:var(--dim);text-shadow:0 2px 10px #000;white-space:nowrap}
+  #sectorPop{position:absolute;top:38%;left:50%;transform:translateX(-50%);font-weight:900;
+    font-size:clamp(16px,2.6vw,24px);text-shadow:0 2px 16px rgba(0,0,0,.8)}
+  #toast{position:absolute;bottom:24%;left:50%;transform:translateX(-50%);font-weight:800;
+    font-size:clamp(13px,2vw,18px);color:var(--gold);text-shadow:0 2px 12px #000;white-space:nowrap}
+  #wrongway{position:absolute;top:18%;left:50%;transform:translateX(-50%);color:#ff5140;
+    font-size:clamp(20px,4vw,36px);font-weight:900;display:none;text-shadow:0 0 24px rgba(255,40,20,.8)}
+  /* start lights */
+  #lights{position:absolute;top:12%;left:50%;transform:translateX(-50%);display:none;gap:clamp(8px,1.6vw,14px)}
+  #lights span{width:clamp(26px,5vw,46px);height:clamp(26px,5vw,46px);border-radius:50%;
+    background:#2a2f3a;border:2px solid #11141c;box-shadow:inset 0 3px 8px rgba(0,0,0,.7)}
+  #lights span.on{background:radial-gradient(circle at 35% 30%,#ff8a7a,#e01000 70%);box-shadow:0 0 26px rgba(255,30,10,.9)}
+  /* pause btn */
+  #pauseBtn{position:fixed;top:calc(14px + env(safe-area-inset-top));right:calc(14px + clamp(120px,16vw,180px) + 18px);
+    z-index:15;display:none;width:38px;height:38px;border-radius:10px;border:1px solid rgba(140,170,210,.3);
+    background:rgba(24,34,52,.6);color:#dfe9f5;font-size:17px;cursor:pointer;backdrop-filter:blur(3px)}
+  /* touch controls */
+  #touch{position:fixed;inset:0;z-index:20;pointer-events:none;display:none}
+  #touch.on{display:block}
+  .tbtn{position:absolute;bottom:calc(20px + env(safe-area-inset-bottom));width:clamp(64px,17vw,96px);height:clamp(64px,17vw,96px);
+    border-radius:50%;background:rgba(30,42,62,.5);border:1.5px solid rgba(150,180,220,.35);
+    color:#dfe9f5;font-size:clamp(22px,6vw,30px);font-weight:900;display:flex;align-items:center;justify-content:center;
+    pointer-events:auto;backdrop-filter:blur(3px)}
+  .tbtn:active,.tbtn.press{background:rgba(60,120,200,.55)}
+  #tL{left:18px}#tR{left:calc(30px + clamp(64px,17vw,96px))}
+  #tB{right:calc(30px + clamp(64px,17vw,96px))}#tA{right:18px;background:rgba(160,40,30,.45)}
+  #tHB{right:18px;bottom:calc(34px + env(safe-area-inset-bottom) + clamp(64px,17vw,96px));width:clamp(48px,12vw,64px);height:clamp(48px,12vw,64px);font-size:clamp(11px,3vw,13px)}
+  /* results */
+  #resTitle{font-size:clamp(26px,5vw,44px);font-weight:900;margin:8px 0 2px}
+  .res-time{font-size:clamp(30px,6vw,52px);font-weight:900;color:var(--gold)}
+  .newrec{display:inline-block;margin-left:12px;padding:4px 12px;border-radius:999px;background:var(--red);
+    color:#fff;font-size:clamp(11px,1.6vw,14px);font-weight:900;letter-spacing:.1em;animation:pulse 1s infinite}
+  @keyframes pulse{50%{transform:scale(1.08);box-shadow:0 0 24px rgba(255,61,46,.8)}}
+  .sectors{display:flex;gap:10px;margin:12px 0;flex-wrap:wrap}
+  .sec{background:rgba(24,34,52,.6);border-radius:10px;padding:8px 14px;font-size:clamp(11px,1.6vw,13px);color:var(--dim)}
+  .sec b{display:block;font-size:1.25em;color:var(--ink)}
+  .sec.purple b{color:#c792ff}.sec.green b{color:var(--green)}
+  input#nameIn{background:rgba(20,30,46,.8);border:1px solid rgba(130,160,200,.35);border-radius:10px;
+    color:var(--gold);font-weight:900;font-size:clamp(18px,3vw,24px);letter-spacing:.4em;text-align:center;
+    width:9ch;padding:8px 4px;text-transform:uppercase;font-family:ui-monospace,monospace}
+  .hint{color:#5c6b80;font-size:clamp(10px,1.5vw,12px);margin-top:14px;line-height:1.7}
+  kbd{background:rgba(60,76,100,.55);border-radius:5px;padding:1px 7px;font-family:inherit;font-weight:700;
+    border:1px solid rgba(140,170,210,.3);border-bottom-width:2.5px;font-size:.92em}
+  /* 좁은 화면 HUD 보정 */
+  @media (max-width:640px){
+    .hud-tl{min-width:110px;padding:7px 10px}
+    .hud-tl .pos{font-size:17px}
+    .hud-tl .row{font-size:10px;gap:8px}
+    #lapTime{font-size:21px}
+    #delta{font-size:11px}
+    #speed{font-size:27px}
+    #gear{font-size:11px}
+    #rpm{width:86px;height:4px}
+    .hud-top{top:calc(64px + env(safe-area-inset-top))}
+    #pauseBtn{top:auto;right:14px;bottom:calc(200px + env(safe-area-inset-bottom))}
+    #msg{top:32%}#submsg{top:calc(32% + 40px)}
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hud-top">
+    <div id="lapTime" class="mono">0:00.000</div>
+    <div id="delta" class="mono"></div>
+  </div>
+  <div class="hud-tl">
+    <div class="pos" id="posBox">P4</div>
+    <div class="row"><span>LAP</span><b class="mono" id="lapBox">1 / 5</b></div>
+    <div class="row"><span>지난 랩</span><b class="mono" id="lastBox">--:--.---</b></div>
+    <div class="row"><span>베스트</span><b class="mono" id="bestBox">--:--.---</b></div>
+  </div>
+  <div class="hud-tr">
+    <div id="speed" class="mono">0<small> km/h</small></div>
+    <div id="gear" class="mono">N</div>
+    <div id="rpm"><div id="rpmFill"></div></div>
+  </div>
+  <div id="lights"><span></span><span></span><span></span><span></span><span></span></div>
+  <div id="msg"></div><div id="submsg"></div>
+  <div id="sectorPop" class="mono"></div>
+  <div id="toast"></div>
+  <div id="wrongway">⚠ 반대 방향!</div>
+</div>
+
+<button id="pauseBtn" title="일시정지 (Esc)">⏸</button>
+
+<!-- touch -->
+<div id="touch">
+  <div class="tbtn" id="tL">◀</div><div class="tbtn" id="tR">▶</div>
+  <div class="tbtn" id="tHB">드리프트</div>
+  <div class="tbtn" id="tB">−</div><div class="tbtn" id="tA">+</div>
+</div>
+
+<!-- TITLE -->
+<div class="screen" id="scrTitle">
+  <div class="card">
+    <div class="kicker">SUPERRACE CHAMPIONSHIP · ROUND 5 대비 팬 게임</div>
+    <h1>용인 <span class="night">나이트</span> 레이스</h1>
+    <div class="sub">에버랜드 스피드웨이 <b>나이트코스</b> — 슈퍼레이스 썸머 나이트레이스가 열리는 바로 그 숏코스를 실제 제원 그대로 재현했습니다.</div>
+    <div class="facts">
+      <span class="chip">전장 <b>2.538 km</b></span>
+      <span class="chip">코너 <b>11개</b></span>
+      <span class="chip">메인 스트레이트 <b>456 m</b></span>
+      <span class="chip">주행 방향 <b>시계방향</b></span>
+      <span class="chip">트랙 폭 <b>11–15 m</b></span>
+      <span class="chip">고저차 있는 <b>테크니컬 코스</b></span>
+    </div>
+    <div class="btnrow">
+      <button class="btn" id="btnRace">🏁 레이스 (vs AI · 5랩)</button>
+      <button class="btn cyan" id="btnTA">⏱ 타임어택 + 고스트</button>
+      <button class="btn ghost" id="btnGuide">코스 가이드</button>
+      <button class="btn ghost" id="btnRecords">기록실</button>
+    </div>
+    <div class="best-banner" id="titleBest"></div>
+    <div class="hint" id="ctlHint">
+      <kbd>↑</kbd>/<kbd>W</kbd> 가속 · <kbd>↓</kbd>/<kbd>S</kbd> 브레이크 · <kbd>←</kbd><kbd>→</kbd>/<kbd>A</kbd><kbd>D</kbd> 조향 ·
+      <kbd>Space</kbd> 드리프트 · <kbd>R</kbd> 코스 복귀 · <kbd>Esc</kbd> 일시정지 · <kbd>M</kbd> 음소거
+    </div>
+    <div class="foot">
+      본 게임은 실제 코스 자료(총장 2.538km·11코너, 풀코스의 백스트레이트 구간을 생략하고 남동측 복합 코너로 직결하는 나이트 전용 레이아웃)를 바탕으로 제작된 <b>비공식 팬 메이드</b>입니다.
+      SUPERRACE·에버랜드 스피드웨이와 무관합니다 · SUPERRACE MD STORE
+    </div>
+  </div>
+</div>
+
+<!-- GUIDE -->
+<div class="screen hidden" id="scrGuide">
+  <div class="card">
+    <div class="kicker">TRACK GUIDE · 스피드웨이 나이트코스</div>
+    <h1 style="font-size:clamp(22px,4vw,34px)">코스 가이드</h1>
+    <div class="sub">풀코스(4.346km·16코너)에서 960m 백스트레이트와 동측 확장부를 생략하고, 5번 코너 뒤 링크 구간으로 남동측 복합 코너(트윈 헤어핀·짧은 S자)에 직결하는 <b>나이트레이스 전용 2.538km</b> 레이아웃입니다.</div>
+    <div class="g-grid">
+      <canvas id="guideMap"></canvas>
+      <div class="tips">
+        <div><b>T1</b> 메인 스트레이트 끝 중속 우코너 — 제동 기준 60m, 런오프가 좁아 진입 과속 금물</div>
+        <div><b>T2</b> 오르막 좌코너 — 언덕을 오르며 리듬 유지</div>
+        <div><b>T3</b> 정상부 헤어핀(최대 추월 포인트) — 탈출 가속 우선</div>
+        <div><b>T4–T5</b> 능선을 넘는 고속 스윕 — 시야가 늦게 열리는 구간</div>
+        <div><b>T6</b> 나이트코스 전용 링크 우코너 — 내리막 진입 주의</div>
+        <div><b>T7</b> 내리막 좌킹크 — 복합 코너 진입 브레이킹 포인트</div>
+        <div><b>T8–T9</b> 쌍둥이 우코너 — 첫 코너를 희생하고 두 번째 탈출을 살릴 것</div>
+        <div><b>T10–T11</b> 짧은 S자 — 연석을 살짝 쓰되 언더스티어 주의, 이후 456m 풀가속</div>
+      </div>
+    </div>
+    <div class="btnrow"><button class="btn ghost" id="btnGuideBack">← 돌아가기</button></div>
+  </div>
+</div>
+
+<!-- RECORDS -->
+<div class="screen hidden" id="scrRecords">
+  <div class="card">
+    <div class="kicker">RECORDS · 기록실</div>
+    <h1 style="font-size:clamp(22px,4vw,34px)">랩타임 리더보드</h1>
+    <div class="sub">이 기기에 저장된 유효 랩 기준 · 레퍼런스: 슈퍼6000 폴 <b class="mono">1:17.5</b> · GT 코스레코드 <b class="mono">1:23.939</b></div>
+    <div id="lbWrap"></div>
+    <div class="btnrow">
+      <button class="btn ghost" id="btnRecBack">← 돌아가기</button>
+      <button class="btn ghost" id="btnWipe" style="color:#ff8a7a">기록 초기화</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div class="screen hidden" id="scrResult">
+  <div class="card">
+    <div class="kicker" id="resKicker">FINISH</div>
+    <div id="resTitle"></div>
+    <div><span class="res-time mono" id="resTime"></span><span id="resNew" style="display:none" class="newrec">NEW RECORD</span></div>
+    <div class="sectors" id="resSectors"></div>
+    <div id="resTable"></div>
+    <div id="nameRow" style="display:none;margin-top:14px">
+      <div class="sub" style="margin-bottom:6px">TOP 10 진입! 이름을 남기세요 (최대 8자)</div>
+      <input id="nameIn" maxlength="8" placeholder="YOU" autocomplete="off">
+      <button class="btn" id="btnSaveName" style="margin-left:10px;padding:10px 18px">저장</button>
+    </div>
+    <div class="btnrow">
+      <button class="btn" id="btnRetry">다시 도전</button>
+      <button class="btn ghost" id="btnResTitle">타이틀로</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAUSE -->
+<div class="screen hidden" id="scrPause">
+  <div class="card" style="text-align:center;width:min(420px,92vw)">
+    <div class="kicker" style="justify-content:center">PAUSED</div>
+    <h1 style="font-size:clamp(24px,4vw,34px)">일시정지</h1>
+    <div class="btnrow" style="flex-direction:column">
+      <button class="btn" id="btnResume">계속하기</button>
+      <button class="btn cyan" id="btnFinish">🏁 세션 종료 · 결과 보기</button>
+      <button class="btn ghost" id="btnRestart">처음부터</button>
+      <button class="btn ghost" id="btnSound">🔊 사운드 켜짐</button>
+      <button class="btn ghost" id="btnQuit">타이틀로</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* =====================================================================
+   용인 나이트 레이스 — Everland Speedway Night Course (2.538 km, T1–T11)
+   실제 나이트코스 제원 기반 팬메이드 톱다운 레이서 (단일 파일, 의존성 없음)
+   ===================================================================== */
+
+/* ---------- helpers ---------- */
+const TAU=Math.PI*2;
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const hyp=Math.hypot;
+function angNorm(a){while(a>Math.PI)a-=TAU;while(a<-Math.PI)a+=TAU;return a;}
+function fmtMs(ms){ if(ms==null||!isFinite(ms))return '--:--.---';
+  ms=Math.max(0,Math.round(ms)); const m=(ms/60000)|0, s=((ms%60000)/1000)|0, t=ms%1000;
+  return m+':'+String(s).padStart(2,'0')+'.'+String(t).padStart(3,'0'); }
+function fmtDelta(ms){ const s=(Math.abs(ms)/1000).toFixed(3); return (ms<=0?'-':'+')+s; }
+const $=id=>document.getElementById(id);
+
+/* ---------- persistent records ---------- */
+const store={
+  read(k,f){ try{const v=localStorage.getItem('ynr.'+k); return v?JSON.parse(v):f;}catch(e){return f;} },
+  write(k,v){ try{localStorage.setItem('ynr.'+k,JSON.stringify(v));}catch(e){} }
+};
+let best=store.read('best',null);        // {ms,sectors:[3],date,ghost:[[x,y,a],...]}
+let top10=store.read('top10',[]);        // [{name,ms,date,mode}]
+
+/* =====================================================================
+   TRACK — 에버랜드 스피드웨이 나이트코스 재현
+   좌표계: +x 동쪽, +y 남쪽(화면 아래), 북쪽이 화면 위. 시계방향 주행.
+   컨트롤 포인트를 Catmull-Rom 스플라인으로 이어 실측 2,538m로 스케일.
+   ===================================================================== */
+const CP=[
+  // 메인 스트레이트 (동→서 주행, 완만한 보우) — 456m
+  [576,27],[520,30],[452,33],[380,35],[308,36],[244,34],[196,30],
+  // T1: 중속 우코너 (서→북) 오르막 진입
+  [152,22],[124,6],[110,-20],[106,-50],
+  // 오르막 직선
+  [107,-88],[109,-122],
+  // T2: 오르막 좌코너 (북→북서)
+  [105,-158],[94,-190],[77,-216],
+  [63,-240],
+  // T3: 정상 헤어핀 (북서→동남) — 최대 추월 포인트
+  [55,-264],[53,-288],[62,-308],[81,-318],[102,-313],[114,-296],
+  // T4: 좌코너로 능선 통과 (동남→동)
+  [122,-281],[139,-273],[164,-273],[194,-281],
+  // 능선 고속 구간
+  [228,-291],[264,-298],[302,-301],[340,-299],
+  // T5: 우스윕 (동→동남동)
+  [374,-293],[404,-282],[430,-268],
+  // T6: 나이트 링크 우코너 (동→남)
+  [456,-251],[471,-228],[477,-202],
+  // 링크 내리막 직선 (남)
+  [477,-166],[475,-130],[473,-96],
+  // T7: 내리막 좌킹크 (남→동)
+  [476,-70],[489,-50],[512,-39],
+  // 동측 진입로
+  [545,-32],[583,-28],[622,-26],[660,-26],
+  // T8: 트윈 우코너 1 (동→남)
+  [694,-23],[715,-10],[722,12],
+  [720,34],
+  // T9: 트윈 우코너 2 (남→서)
+  [711,54],[690,64],[663,65],
+  [637,61],
+  // T10–T11: 짧은 S자 (좌-우) → 메인 스트레이트 합류
+  [613,54],[597,42],[588,31]
+];
+
+const NIGHT_LEN=2538;                     // 실측 전장 (m)
+const track=(()=>{
+  // Catmull-Rom 보간 (닫힌 루프)
+  const raw=[];
+  const n=CP.length;
+  for(let i=0;i<n;i++){
+    const p0=CP[(i-1+n)%n],p1=CP[i],p2=CP[(i+1)%n],p3=CP[(i+2)%n];
+    for(let j=0;j<14;j++){
+      const t=j/14,t2=t*t,t3=t2*t;
+      raw.push([
+        .5*((2*p1[0])+(-p0[0]+p2[0])*t+(2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2+(-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),
+        .5*((2*p1[1])+(-p0[1]+p2[1])*t+(2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2+(-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3)
+      ]);
+    }
+  }
+  // 아크렝스 계산 → 실측 2,538m로 균일 스케일
+  let L=0; for(let i=0;i<raw.length;i++){const a=raw[i],b=raw[(i+1)%raw.length];L+=hyp(b[0]-a[0],b[1]-a[1]);}
+  const SC=NIGHT_LEN/L;
+  for(const p of raw){p[0]*=SC;p[1]*=SC;}
+  // 균일 간격(≈3m) 리샘플
+  const step=3,pts=[];
+  let acc=0,cur=raw[0].slice();
+  pts.push(cur.slice());
+  let i=0,guard=0;
+  while(pts.length<Math.floor(NIGHT_LEN/step)&&guard++<1e6){
+    const nx=raw[(i+1)%raw.length];
+    const d=hyp(nx[0]-cur[0],nx[1]-cur[1]);
+    if(acc+d>=step){const t=(step-acc)/d;cur=[cur[0]+(nx[0]-cur[0])*t,cur[1]+(nx[1]-cur[1])*t];pts.push(cur.slice());acc=0;}
+    else{acc+=d;cur=nx.slice();i++;}
+  }
+  const N=pts.length, len=N*step;
+  // 접선/법선/곡률
+  const tan=[],nrm=[],kap=new Float32Array(N);
+  for(let i=0;i<N;i++){
+    const a=pts[(i-1+N)%N],b=pts[(i+1)%N];
+    let tx=b[0]-a[0],ty=b[1]-a[1];const m=hyp(tx,ty)||1;tx/=m;ty/=m;
+    tan.push([tx,ty]); nrm.push([-ty,tx]);            // 진행방향 우측 법선
+    const p1=pts[(i-2+N)%N],p2=pts[i],p3=pts[(i+2)%N];
+    const ax=p2[0]-p1[0],ay=p2[1]-p1[1],bx=p3[0]-p2[0],by=p3[1]-p2[1];
+    const cr=ax*by-ay*bx, d1=hyp(ax,ay),d2=hyp(bx,by),d3=hyp(p3[0]-p1[0],p3[1]-p1[1]);
+    kap[i]=(d1&&d2&&d3)?2*cr/(d1*d2*d3):0;            // κ>0 = 우코너
+  }
+  const smooth=(arr,w)=>{const out=new Float32Array(N);for(let i=0;i<N;i++){let s=0;for(let j=-w;j<=w;j++)s+=arr[(i+j+N)%N];out[i]=s/(2*w+1);}return out;};
+  const kapS=smooth(kap,5), kapW=smooth(kap,14);
+  // 트랙 폭 (실제 11~15m): 직선 15m, 코너 11.5m
+  const width=new Float32Array(N);
+  for(let i=0;i<N;i++){const k=Math.abs(kapW[i]);width[i]=clamp(15-k*260,11.5,15)/1;}
+  const widthS=smooth(width,10);
+  // 경사(고저 연출): T1~T3 오르막, T3 정상, T4~T7 내리막 — s 구간 기반 근사
+  const grade=new Float32Array(N);
+  for(let i=0;i<N;i++){
+    const y=pts[i][1];                                 // 북쪽(-y)일수록 높다
+    grade[i]=clamp((-y-40)/300,0,1)*1;                 // 0(저지)~1(정상) 고도 근사
+  }
+  const elev=smooth(grade,20);
+  const slope=new Float32Array(N);                     // + = 오르막
+  for(let i=0;i<N;i++){slope[i]=(elev[(i+3)%N]-elev[(i-3+N)%N])*8;}
+  // 레이싱 라인: 인코스 오프셋 → 큰 창 스무딩으로 아웃-인-아웃 근사
+  const rawOff=new Float32Array(N);
+  for(let i=0;i<N;i++){const k=kapS[i];rawOff[i]=clamp(k*900,-1,1)*Math.max(0,widthS[i]/2-2.4);}
+  const lineOff=smooth(smooth(rawOff,26),12);
+  // AI 목표 속도 프로파일
+  const A_LAT=10.4,A_BRK=16,A_ACC=8.2,VMAX=57;
+  const vt=new Float32Array(N);
+  for(let i=0;i<N;i++){vt[i]=Math.min(VMAX,Math.sqrt(A_LAT/Math.max(Math.abs(kapS[i]),1e-4)));}
+  for(let pass=0;pass<3;pass++)for(let i=N-1;i>=0;i--){const nx=vt[(i+1)%N];vt[i]=Math.min(vt[i],Math.sqrt(nx*nx+2*A_BRK*step));}
+  for(let pass=0;pass<2;pass++)for(let i=0;i<N;i++){const pv=vt[(i-1+N)%N];vt[i]=Math.min(vt[i],Math.sqrt(pv*pv+2*A_ACC*step));}
+  // 공간 해시 (최근접 탐색)
+  const CELL=18,hash=new Map();
+  const key=(cx,cy)=>cx+','+cy;
+  for(let i=0;i<N;i++){const cx=Math.floor(pts[i][0]/CELL),cy=Math.floor(pts[i][1]/CELL);
+    const k=key(cx,cy);if(!hash.has(k))hash.set(k,[]);hash.get(k).push(i);}
+  function nearest(x,y){
+    const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL);
+    let bi=-1,bd=1e18;
+    for(let r=0;r<=4;r++){
+      for(let dx=-r;dx<=r;dx++)for(let dy=-r;dy<=r;dy++){
+        if(Math.max(Math.abs(dx),Math.abs(dy))!==r)continue;
+        const arr=hash.get(key(cx+dx,cy+dy));if(!arr)continue;
+        for(const i of arr){const p=pts[i],d=(p[0]-x)**2+(p[1]-y)**2;if(d<bd){bd=d;bi=i;}}
+      }
+      if(bi>=0&&r>=1)break;
+    }
+    if(bi<0){for(let i=0;i<N;i+=4){const p=pts[i],d=(p[0]-x)**2+(p[1]-y)**2;if(d<bd){bd=d;bi=i;}}}
+    return bi;
+  }
+  // 정밀 s + 횡오차
+  function locate(x,y){
+    const i=nearest(x,y),p=pts[i],t=tan[i];
+    const dx=x-p[0],dy=y-p[1];
+    const along=dx*t[0]+dy*t[1], lat=dx*nrm[i][0]+dy*nrm[i][1];
+    let s=i*step+along; if(s<0)s+=len; if(s>=len)s-=len;
+    return {i,s,lat};
+  }
+  // 코너 정보 (라벨/보드 배치용) — s 지점 수동 지정 (스케일 후 탐색)
+  const SC2=SC;
+  function ptAt(cpIdx){const p=CP[cpIdx];return nearest(p[0]*SC2,p[1]*SC2);}
+  const corners=[
+    {n:'T1', i:ptAt(8)},  {n:'T2', i:ptAt(14)}, {n:'T3', i:ptAt(19)},
+    {n:'T4', i:ptAt(24)}, {n:'T5', i:ptAt(32)}, {n:'T6', i:ptAt(35)},
+    {n:'T7', i:ptAt(41)}, {n:'T8', i:ptAt(48)}, {n:'T9', i:ptAt(52)},
+    {n:'T10',i:ptAt(55)}, {n:'T11',i:ptAt(57)}
+  ];
+  // S/F 라인: 메인 스트레이트 중간 (CP[2] 부근)
+  const sfIdx=ptAt(2), sfS=sfIdx*step;
+  // 섹터 경계: S1 = T3 탈출, S2 = T7 진입, S3 = S/F
+  const sec1=((corners[3].i*step-sfS)+len)%len, sec2=((corners[6].i*step-sfS)+len)%len;
+  // 조명탑 (약 90m 간격, 좌우 교차)
+  const lights=[];
+  for(let s=0,side=1;s<len;s+=88,side*=-1){
+    const i=Math.floor(s/step)%N,p=pts[i],nn=nrm[i];
+    const off=widthS[i]/2+7;
+    lights.push({x:p[0]+nn[0]*off*side,y:p[1]+nn[1]*off*side,side,i});
+  }
+  // 연석 구간 (곡률 임계 초과)
+  const curbs=[];let run=null;
+  for(let i=0;i<N;i++){
+    const k=Math.abs(kapS[i])>0.011;
+    if(k&&!run)run={a:i};
+    if((!k||i===N-1)&&run){run.b=i;if(run.b-run.a>3)curbs.push(run);run=null;}
+  }
+  return {pts,tan,nrm,kap:kapS,width:widthS,N,step,len,vt,lineOff,elev,slope,
+          locate,nearest,corners,sfIdx,sfS,sec1,sec2,lights,curbs,VMAX};
+})();
+
+/* ---------- audio (WebAudio 합성, 무에셋) ---------- */
+const audio=(()=>{
+  let ctx=null,master=null,engOsc=null,engOsc2=null,engGain=null,skidSrc=null,skidGain=null,started=false;
+  let muted=store.read('muted',false);
+  function init(){
+    if(started)return; started=true;
+    try{
+      ctx=new (window.AudioContext||window.webkitAudioContext)();
+      master=ctx.createGain();master.gain.value=muted?0:0.8;master.connect(ctx.destination);
+      // engine
+      engGain=ctx.createGain();engGain.gain.value=0;
+      const dist=ctx.createWaveShaper();
+      const curve=new Float32Array(64);for(let i=0;i<64;i++){const x=i/63*2-1;curve[i]=Math.tanh(2.2*x);}
+      dist.curve=curve;
+      engOsc=ctx.createOscillator();engOsc.type='sawtooth';
+      engOsc2=ctx.createOscillator();engOsc2.type='square';
+      const g2=ctx.createGain();g2.gain.value=.45;
+      engOsc.connect(dist);engOsc2.connect(g2);g2.connect(dist);
+      const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=2200;lp.Q.value=.8;
+      dist.connect(lp);lp.connect(engGain);engGain.connect(master);
+      engOsc.start();engOsc2.start();
+      // skid noise
+      const buf=ctx.createBuffer(1,ctx.sampleRate*1,ctx.sampleRate);
+      const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+      skidSrc=ctx.createBufferSource();skidSrc.buffer=buf;skidSrc.loop=true;
+      const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=900;bp.Q.value=1.2;
+      skidGain=ctx.createGain();skidGain.gain.value=0;
+      skidSrc.connect(bp);bp.connect(skidGain);skidGain.connect(master);
+      skidSrc.start();
+    }catch(e){}
+  }
+  function engine(rpm01,load,vol){
+    if(!ctx)return;
+    const f=55+rpm01*260;
+    engOsc.frequency.setTargetAtTime(f,ctx.currentTime,.03);
+    engOsc2.frequency.setTargetAtTime(f/2,ctx.currentTime,.03);
+    engGain.gain.setTargetAtTime((0.05+rpm01*.16+load*.08)*vol,ctx.currentTime,.05);
+  }
+  function skid(a){ if(ctx)skidGain.gain.setTargetAtTime(clamp(a,0,1)*.30,ctx.currentTime,.05); }
+  function beep(f,dur,type,vol,when){
+    if(!ctx)return;
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.type=type||'sine';o.frequency.value=f;
+    const t=(when||0)+ctx.currentTime;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol||.4,t+.012);
+    g.gain.exponentialRampToValueAtTime(.0001,t+(dur||.18));
+    o.connect(g);g.connect(master);o.start(t);o.stop(t+(dur||.18)+.05);
+  }
+  function thud(v){ if(!ctx)return;
+    const o=ctx.createOscillator(),g=ctx.createGain();o.type='triangle';
+    o.frequency.setValueAtTime(120,ctx.currentTime);o.frequency.exponentialRampToValueAtTime(38,ctx.currentTime+.14);
+    g.gain.setValueAtTime(clamp(v,.1,.8),ctx.currentTime);g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.2);
+    o.connect(g);g.connect(master);o.start();o.stop(ctx.currentTime+.25);}
+  function fanfare(){ [0,.12,.24,.36,.6].forEach((t,i)=>beep([523,659,784,1047,1319][i],.5,'triangle',.35,t)); }
+  function setMuted(m){muted=m;store.write('muted',m);if(master)master.gain.value=m?0:0.8;}
+  return {init,engine,skid,beep,thud,fanfare,setMuted,get muted(){return muted;},resume(){if(ctx&&ctx.state==='suspended')ctx.resume();}};
+})();
+
+/* ---------- input ---------- */
+const input={steer:0,throttle:0,brake:0,hb:false,_k:{}};
+addEventListener('keydown',e=>{
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();
+  input._k[e.code]=true;
+  if(e.code==='KeyM'){audio.setMuted(!audio.muted);ui.toast(audio.muted?'🔇 음소거':'🔊 사운드 켜짐');}
+  if(e.code==='Escape')game.togglePause();
+  if(e.code==='KeyR')game.resetCar();
+  audio.init();audio.resume();
+});
+addEventListener('keyup',e=>input._k[e.code]=false);
+function pollKeys(){
+  const k=input._k;
+  const l=k.ArrowLeft||k.KeyA?1:0, r=k.ArrowRight||k.KeyD?1:0;
+  input.steer=r-l;
+  input.throttle=(k.ArrowUp||k.KeyW)?1:0;
+  input.brake=(k.ArrowDown||k.KeyS)?1:0;
+  input.hb=!!(k.Space);
+}
+/* touch */
+const touchEl=$('touch');
+const isTouch=matchMedia('(pointer:coarse)').matches;
+if(isTouch){ $('ctlHint').innerHTML='화면 버튼으로 조작: ◀▶ 조향 · <b>+</b> 가속 · <b>−</b> 브레이크 · 드리프트 버튼'; }
+const tstate={L:0,R:0,A:0,B:0,HB:0};
+[['tL','L'],['tR','R'],['tA','A'],['tB','B'],['tHB','HB']].forEach(([id,kk])=>{
+  const el=$(id);
+  const on=e=>{e.preventDefault();tstate[kk]=1;el.classList.add('press');audio.init();audio.resume();};
+  const off=e=>{e.preventDefault();tstate[kk]=0;el.classList.remove('press');};
+  el.addEventListener('pointerdown',on);el.addEventListener('pointerup',off);
+  el.addEventListener('pointercancel',off);el.addEventListener('pointerleave',off);
+});
+function pollTouch(){
+  if(!isTouch)return;
+  if(tstate.L||tstate.R)input.steer=tstate.R-tstate.L;
+  if(tstate.A)input.throttle=1;
+  if(tstate.B)input.brake=1;
+  if(tstate.HB)input.hb=true;
+}
+/* gamepad */
+function pollPad(){
+  const gps=navigator.getGamepads?navigator.getGamepads():[];
+  for(const gp of gps){
+    if(!gp)continue;
+    const ax=gp.axes[0]||0;
+    if(Math.abs(ax)>.12)input.steer=clamp(ax*1.2,-1,1);
+    const th=gp.buttons[7]?.value||0, br=gp.buttons[6]?.value||0;
+    if(th>.05)input.throttle=th; if(br>.05)input.brake=br;
+    if(gp.buttons[0]?.pressed)input.hb=true;
+  }
+}
+
+/* ---------- car ---------- */
+const CAR_LEN=4.9,CAR_W=1.96;
+const LIVERIES=[ // [body, stripe, glowName]
+  ['#e8322a','#ffffff','RED STORM'],['#1268d8','#8fd0ff','BLUE ONE'],
+  ['#f4f6f8','#e8322a','WHITE 46'],['#ffd23d','#111827','BUMBLE'],
+  ['#19c37d','#052b1c','GREEN GP'],['#a45cff','#f2e7ff','VIOLET'],
+  ['#ff7b1c','#2b1608','SUNSET'],['#20d8e8','#083038','ICE BLUE']
+];
+class Car{
+  constructor(opts){
+    Object.assign(this,{
+      x:0,y:0,ang:0,vF:0,vLat:0,steerVis:0,
+      isPlayer:false,ai:null,name:'YOU',num:5,
+      body:'#e8322a',stripe:'#fff',
+      lap:0,progress:0,s:0,lat:0,idx:0,
+      lapStartT:0,curLapValid:true,cutAcc:0,offAcc:0,
+      lastLap:null,bestLap:null,sectors:[null,null,null],curSec:0,secStartT:0,
+      finished:false,finishT:0,penalty:0,
+      slip:0,onGrass:false,airLight:0,drift:0,
+      skill:1,aggro:1,targetLat:0,
+    },opts);
+  }
+  place(s,latOff,rev){
+    const i=Math.floor(s/track.step)%track.N;
+    const p=track.pts[i],t=track.tan[i],n=track.nrm[i];
+    this.x=p[0]+n[0]*latOff; this.y=p[1]+n[1]*latOff;
+    this.ang=Math.atan2(t[1],t[0])+(rev?Math.PI:0);
+    this.vF=0;this.vLat=0;this.s=s;this.idx=i;   // progress는 setup에서만 초기화
+  }
+  /* 공용 물리 스텝 */
+  step(dt,ctrl,world){
+    const {steer,throttle,brake,hb}=ctrl;
+    const loc=track.locate(this.x,this.y);
+    this.idx=loc.i; this.lat=loc.lat;
+    const halfW=track.width[loc.i]/2;
+    const off=Math.abs(loc.lat)-halfW;
+    this.onCurb=off>0&&off<=2.1;                       // 연석: 살짝 미끄럽고 덜컹거림
+    this.onGrass=off>2.1;
+    const hardOff=off>7.5;
+    // 그립/노면
+    const gripLat=this.onGrass?3.4:(hb?4.4:(this.onCurb?7.4:8.6));
+    const muAcc=this.onGrass?.5:(this.onCurb?.92:1);
+    // 경사
+    const slope=track.slope[loc.i]||0;
+    // 조향 (속도 감응 + 램프)
+    const v=Math.abs(this.vF);
+    const rate=steer!==0&&Math.sign(steer)!==Math.sign(this.steerCur||0)?9:(steer!==0?4.6:7);
+    this.steerCur=(this.steerCur||0)+clamp(steer-(this.steerCur||0),-rate*dt,rate*dt);
+    const steerMax=.55/(1+v*.085);
+    const target=this.steerCur*steerMax*(hb?1.5:1);
+    this.steerVis=lerp(this.steerVis,steer,clamp(dt*8,0,1));
+    const gripYaw=(this.onGrass?7.4:12.6)/Math.max(v,4);
+    let yaw=clamp(target*v/2.62,-gripYaw,gripYaw);
+    if(this.vF<0)yaw*=-1;
+    this.ang+=yaw*dt*clamp(v/2,0,1);
+    // 종방향
+    const VMAX=track.VMAX*(this.isPlayer?1:this.skill);
+    let acc=0;
+    if(throttle>0)acc+=throttle*(this.onGrass?4:8.9)*muAcc*Math.max(.25,1-v/VMAX);
+    if(brake>0){ if(this.vF>1)acc-=brake*22; else if(this.vF>-8)acc-=brake*6; }
+    acc-=slope*2.6;                                    // 오르막 감속/내리막 가속
+    acc-=(this.onGrass?.09:.012)*this.vF*Math.abs(this.vF)*.02+Math.sign(this.vF)*(this.onGrass?2.4:.35);
+    if(hb&&this.vF>2)acc-=3;
+    // 슬립스트림
+    if(this.isPlayer&&world){
+      let ds=false;
+      for(const o of world.cars){ if(o===this)continue;
+        const dx=o.x-this.x,dy=o.y-this.y,d=hyp(dx,dy);
+        if(d<30&&d>4){ const fx=Math.cos(this.ang),fy=Math.sin(this.ang);
+          if((dx*fx+dy*fy)/d>.93&&this.vF>30){ds=true;break;} } }
+      this.draft=ds; if(ds)acc+=1.15;
+    }
+    this.vF+=acc*dt;
+    if(Math.abs(this.vF)<.12&&throttle===0&&brake===0)this.vF=0;
+    // 횡방향: 헤딩 회전에 따른 재분해 + 감쇠
+    const f=[Math.cos(this.ang),Math.sin(this.ang)], rr=[-f[1],f[0]];
+    let vx=f[0]*this.vF+rr[0]*this.vLat, vy=f[1]*this.vF+rr[1]*this.vLat;
+    // yaw로 인한 원심 성분: 재투영으로 자연 발생
+    this.vF=vx*f[0]+vy*f[1];
+    this.vLat=vx*rr[0]+vy*rr[1];
+    this.vLat*=Math.exp(-gripLat*dt);
+    this.slip=Math.abs(this.vLat);
+    this.drift=this.slip>3.2&&v>8?1:0;
+    // 통합
+    vx=f[0]*this.vF+rr[0]*this.vLat; vy=f[1]*this.vF+rr[1]*this.vLat;
+    this.x+=vx*dt; this.y+=vy*dt;
+    // 외곽 벽 (soft barrier)
+    if(hardOff){
+      const n=track.nrm[loc.i],sgn=Math.sign(loc.lat);
+      const wallDist=halfW+7.5;
+      this.x-=n[0]*sgn*(off-7.5); this.y-=n[1]*sgn*(off-7.5);
+      const vn=vx*n[0]*sgn+vy*n[1]*sgn;
+      if(vn>0){ this.vF*=.72; this.vLat*=-.3;
+        if(this.isPlayer&&v>8){fx.sparks(this.x,this.y,10+v);audio.thud(v/40);} }
+    }
+    // 진행도
+    const dsRaw=loc.s-this.s;
+    let dsw=dsRaw; if(dsw>track.len/2)dsw-=track.len; if(dsw<-track.len/2)dsw+=track.len;
+    if(Math.abs(dsw)<40)this.progress+=dsw;
+    this.s=loc.s;
+    // 코스컷 감지 (트랙 밖에서 전진 누적)
+    if(this.onGrass&&off>3&&dsw>0)this.cutAcc+=dsw; else if(!this.onGrass)this.cutAcc=Math.max(0,this.cutAcc-dsw*.5);
+    if(this.cutAcc>26&&this.curLapValid){this.curLapValid=false;if(this.isPlayer)ui.toast('⚠ 숏컷 — 이번 랩 기록 무효');}
+  }
+}
+
+/* AI 컨트롤러 */
+function aiControl(car,dt,world){
+  const look=8+Math.abs(car.vF)*.42;
+  const li=(car.idx+Math.floor(look/track.step))%track.N;
+  const p=track.pts[li],n=track.nrm[li];
+  // 목표 지점: 레이싱 라인 + 회피 오프셋
+  let latT=track.lineOff[li]*car.skill+car.targetLat;
+  const tx=p[0]+n[0]*latT, ty=p[1]+n[1]*latT;
+  const dx=tx-car.x,dy=ty-car.y;
+  const desired=Math.atan2(dy,dx);
+  const err=angNorm(desired-car.ang);
+  const steer=clamp(err*3.2,-1,1);
+  // 목표 속도: 예측 제동 (제동거리 기반 전방 스캔)
+  const v0=Math.abs(car.vF);
+  const scanM=24+v0*v0/26;                     // v²/(2·13) 여유 제동거리
+  const ahead=Math.min(Math.ceil(scanM/track.step),Math.floor(track.N/2));
+  let vt=track.vt[car.idx];
+  const A_SAFE=13;
+  for(let j=1;j<ahead;j+=2){
+    const idx=(car.idx+j)%track.N;
+    const allow=Math.sqrt(track.vt[idx]*track.vt[idx]+2*A_SAFE*j*track.step);
+    if(allow<vt)vt=allow;
+  }
+  vt*=car.skill;
+  // 전방 차량 회피/추종
+  car.targetLat*=Math.pow(.4,dt);
+  for(const o of world.cars){ if(o===car)continue;
+    const ox=o.x-car.x,oy=o.y-car.y,d=hyp(ox,oy);
+    if(d<15){ const f=[Math.cos(car.ang),Math.sin(car.ang)];
+      const fwd=(ox*f[0]+oy*f[1]);
+      if(fwd>0&&fwd<15){ vt=Math.min(vt,Math.abs(o.vF)+ (d-6)*2 );
+        const side=(ox*-f[1]+oy*f[0])>0?-1:1;
+        car.targetLat=clamp(car.targetLat+side*dt*10,-4,4); } } }
+  const dv=vt-car.vF;
+  // 스턱 자동 복구 (AI/오토파일럿)
+  if(Math.abs(car.vF)<1.4)car._stuckT=(car._stuckT||0)+dt; else car._stuckT=0;
+  if(car._stuckT>2.4){
+    car.place(car.s,0);car._stuckT=0;
+    if(car.isPlayer){car.curLapValid=false;ui.toast('코스 복귀 — 이번 랩 무효');}
+  }
+  return {steer,throttle:dv>0?clamp(dv*.4,0,1):0,brake:dv<-1.5?clamp(-dv*.28,0,1):0,hb:false};
+}
+
+/* ---------- particles & fx ---------- */
+const fx=(()=>{
+  const parts=[];const marks=[];
+  function sparks(x,y,n){for(let i=0;i<Math.min(n,26);i++)parts.push({x,y,vx:(Math.random()-.5)*26,vy:(Math.random()-.5)*26,life:.4+Math.random()*.4,t:0,kind:0});}
+  function smoke(x,y,v){parts.push({x,y,vx:(Math.random()-.5)*4-v*.1,vy:(Math.random()-.5)*4,life:.9+Math.random()*.7,t:0,kind:1,r:1+Math.random()*1.6});}
+  function dirt(x,y){parts.push({x,y,vx:(Math.random()-.5)*12,vy:(Math.random()-.5)*12,life:.5,t:0,kind:2});}
+  function confetti(x,y){for(let i=0;i<80;i++)parts.push({x,y,vx:(Math.random()-.5)*40,vy:-Math.random()*36,life:1.6+Math.random(),t:0,kind:3,c:['#ff3d2e','#ffd257','#37e6ff','#3dff8a','#c792ff'][i%5]});}
+  const fires=[];
+  function firework(x,y){fires.push({x,y,t:0,dur:.9+Math.random()*.4,hue:Math.random()*360});audio.beep(180+Math.random()*80,.5,'triangle',.18);}
+  function step(dt){
+    for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.t+=dt;
+      if(p.t>p.life){parts.splice(i,1);continue;}
+      p.x+=p.vx*dt;p.y+=p.vy*dt;
+      if(p.kind===3)p.vy+=26*dt;
+      if(p.kind===1){p.vx*=.94;p.vy*=.94;}}
+    for(let i=fires.length-1;i>=0;i--){fires[i].t+=dt;if(fires[i].t>fires[i].dur+1.2)fires.splice(i,1);}
+  }
+  function mark(x1,y1,x2,y2,a){marks.push({x1,y1,x2,y2,a});if(marks.length>2600)marks.splice(0,600);}
+  return {parts,marks,fires,sparks,smoke,dirt,confetti,firework,step,mark};
+})();
+
+/* ---------- ghost ---------- */
+const ghost={
+  rec:[],recT:0,active:null,playT:0,
+  start(){this.rec=[];this.recT=0;},
+  sample(t,car){ if(t-this.recT>=100||this.rec.length===0){this.recT=t;
+    this.rec.push([+car.x.toFixed(1),+car.y.toFixed(1),+car.ang.toFixed(3)]);} },
+  load(g){this.active=(g&&g.length>10)?g:null;},
+  pos(tMs){ // 100ms 간격 샘플 보간
+    if(!this.active)return null;
+    const i=clamp(Math.floor(tMs/100),0,this.active.length-2);
+    const t=clamp(tMs/100-i,0,1);
+    const a=this.active[i],b=this.active[i+1];
+    return [lerp(a[0],b[0],t),lerp(a[1],b[1],t),a[2]+angNorm(b[2]-a[2])*t];
+  }
+};
+
+/* ---------- ui helpers ---------- */
+const ui={
+  show(id){['scrTitle','scrGuide','scrRecords','scrResult','scrPause'].forEach(s=>$(s).classList.toggle('hidden',s!==id));},
+  hideAll(){['scrTitle','scrGuide','scrRecords','scrResult','scrPause'].forEach(s=>$(s).classList.add('hidden'));},
+  msg(t,sub,dur){$('msg').textContent=t||'';$('submsg').textContent=sub||'';
+    clearTimeout(ui._mt); if(dur)ui._mt=setTimeout(()=>{$('msg').textContent='';$('submsg').textContent='';},dur);},
+  toast(t,dur){$('toast').textContent=t;clearTimeout(ui._tt);ui._tt=setTimeout(()=>$('toast').textContent='',dur||2200);},
+  sector(t,cls,dur){const el=$('sectorPop');el.textContent=t;el.style.color=cls;clearTimeout(ui._st);ui._st=setTimeout(()=>el.textContent='',dur||2000);},
+  titleBest(){
+    const el=$('titleBest');
+    if(best){ el.innerHTML=`<span>내 최고 기록</span><span class="t mono">${fmtMs(best.ms)}</span>
+      <span>S1 <b class="mono">${fmtMs(best.sectors?.[0])}</b> · S2 <b class="mono">${fmtMs(best.sectors?.[1])}</b> · S3 <b class="mono">${fmtMs(best.sectors?.[2])}</b></span>
+      <span style="color:#5c6b80">${new Date(best.date).toLocaleDateString('ko-KR')}</span>`; }
+    else el.innerHTML='<span>아직 기록이 없습니다 — 첫 유효 랩을 남겨보세요! 레퍼런스: 슈퍼6000 <b class="mono" style="color:#cfe0f2">1:17.5</b> · GT <b class="mono" style="color:#cfe0f2">1:23.939</b></span>';
+  },
+  leaderboard(){
+    const w=$('lbWrap');
+    if(!top10.length){w.innerHTML='<div class="empty">저장된 기록이 없습니다.<br>타임어택으로 첫 기록을 세워보세요!</div>';return;}
+    let h='<table class="lb"><tr><th>순위</th><th>이름</th><th>기록</th><th>모드</th><th>날짜</th></tr>';
+    top10.forEach((r,i)=>{h+=`<tr${r.last?' class="me"':''}><td class="rank">${i+1}</td><td>${r.name}</td><td class="mono">${fmtMs(r.ms)}</td><td>${r.mode==='race'?'레이스':'타임어택'}</td><td>${new Date(r.date).toLocaleDateString('ko-KR')}</td></tr>`;});
+    w.innerHTML=h+'</table>';
+  }
+};
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+const cvs=$('game'),ctx=cvs.getContext('2d');
+let W=0,H=0,DPR=1;
+function resize(){DPR=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;
+  cvs.width=W*DPR;cvs.height=H*DPR;cvs.style.width=W+'px';cvs.style.height=H+'px';}
+addEventListener('resize',resize);resize();
+
+/* 트랙 Path2D 프리컴퓨트 */
+const R=(()=>{
+  const {pts,nrm,width,N}=track;
+  function edge(sign,pad){const p=new Path2D();
+    for(let i=0;i<=N;i++){const j=i%N;const x=pts[j][0]+nrm[j][0]*(width[j]/2+ (pad||0))*sign,
+      y=pts[j][1]+nrm[j][1]*(width[j]/2+(pad||0))*sign;
+      i===0?p.moveTo(x,y):p.lineTo(x,y);}return p;}
+  // 아스팔트 폴리곤 (좌우 외곽 연결)
+  const asphalt=new Path2D();
+  for(let i=0;i<=N;i++){const j=i%N,x=pts[j][0]+nrm[j][0]*(width[j]/2+.4),y=pts[j][1]+nrm[j][1]*(width[j]/2+.4);
+    i===0?asphalt.moveTo(x,y):asphalt.lineTo(x,y);}
+  for(let i=N;i>=0;i--){const j=i%N,x=pts[j][0]-nrm[j][0]*(width[j]/2+.4),y=pts[j][1]-nrm[j][1]*(width[j]/2+.4);
+    asphalt.lineTo(x,y);}
+  asphalt.closePath();
+  // 런오프 (코너 외측 여유 아스팔트)
+  const runoff=new Path2D();
+  for(let i=0;i<=N;i++){const j=i%N,ex=2+Math.min(Math.abs(track.kap[j])*420,7);
+    const x=pts[j][0]+nrm[j][0]*(width[j]/2+ex),y=pts[j][1]+nrm[j][1]*(width[j]/2+ex);
+    i===0?runoff.moveTo(x,y):runoff.lineTo(x,y);}
+  for(let i=N;i>=0;i--){const j=i%N,ex=2+Math.min(Math.abs(track.kap[j])*420,7);
+    const x=pts[j][0]-nrm[j][0]*(width[j]/2+ex),y=pts[j][1]-nrm[j][1]*(width[j]/2+ex);
+    runoff.lineTo(x,y);}
+  runoff.closePath();
+  const eL=edge(-1),eR=edge(1);
+  // 센터 대시
+  const dash=new Path2D();
+  for(let i=0;i<N;i+=6){const a=pts[i],b=pts[(i+2)%N];dash.moveTo(a[0],a[1]);dash.lineTo(b[0],b[1]);}
+  // 연석 블록
+  const curbR=[],curbW=[];
+  for(const c of track.curbs){
+    for(let i=c.a;i<c.b;i+=2){
+      const j=i%N,k=track.kap[j],side=Math.sign(k);       // 인코스 연석
+      for(const sd of [side,-side*0]){ if(sd===0)continue;
+        const w2=width[j]/2,n=nrm[j],t=track.tan[j];
+        const bx=pts[j][0]+n[0]*w2*sd, by=pts[j][1]+n[1]*w2*sd;
+        const q=new Path2D();
+        const cw=2.0,cl=track.step*2;
+        q.moveTo(bx-t[0]*cl/2-n[0]*0*sd,           by-t[1]*cl/2);
+        q.lineTo(bx+t[0]*cl/2,                      by+t[1]*cl/2);
+        q.lineTo(bx+t[0]*cl/2+n[0]*cw*sd,           by+t[1]*cl/2+n[1]*cw*sd);
+        q.lineTo(bx-t[0]*cl/2+n[0]*cw*sd,           by-t[1]*cl/2+n[1]*cw*sd);
+        q.closePath();
+        ((i>>1)%2?curbR:curbW).push(q);
+      }
+    }
+  }
+  // 조명 스프라이트
+  function glowSprite(r,color,inner){
+    const c=document.createElement('canvas');c.width=c.height=r*2;
+    const g=c.getContext('2d');const gr=g.createRadialGradient(r,r,0,r,r,r);
+    gr.addColorStop(0,inner);gr.addColorStop(.35,color);gr.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=gr;g.fillRect(0,0,r*2,r*2);return c;}
+  const poolSpr=glowSprite(128,'rgba(255,240,205,.10)','rgba(255,246,220,.20)');
+  const headSpr=glowSprite(64,'rgba(255,250,230,.55)','rgba(255,255,255,.95)');
+  const towerSpr=glowSprite(96,'rgba(190,225,255,.22)','rgba(235,246,255,.6)');
+  // 타이어 배리어 (T1·T3·T8 아웃코스) + 수목 데코
+  const tires=[];
+  for(const ci of [0,2,7]){
+    const cc=track.corners[ci];
+    for(let j=-8;j<=8;j+=2){
+      const i=((cc.i+j*2)%N+N)%N;
+      const k=track.kap[i],sgn=-Math.sign(k)||1;
+      const p=pts[i],n=nrm[i];
+      const off=width[i]/2+6.4;
+      tires.push([p[0]+n[0]*off*sgn,p[1]+n[1]*off*sgn]);
+    }
+  }
+  const trees=[];
+  {
+    let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
+    let tminX=1e9,tminY=1e9,tmaxX=-1e9,tmaxY=-1e9;
+    for(const p of pts){tminX=Math.min(tminX,p[0]);tmaxX=Math.max(tmaxX,p[0]);tminY=Math.min(tminY,p[1]);tmaxY=Math.max(tmaxY,p[1]);}
+    for(let t=0;t<380&&trees.length<90;t++){
+      const x=tminX-40+rnd()*(tmaxX-tminX+80),y=tminY-40+rnd()*(tmaxY-tminY+80);
+      const ni=track.nearest(x,y),np=pts[ni];
+      const d=hyp(x-np[0],y-np[1]);
+      if(d>width[ni]/2+13)trees.push([x,y,2.5+rnd()*3.5,rnd()]);
+    }
+  }
+  // 스키드 캔버스 (월드 1.6 px/m)
+  let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+  for(const p of pts){minX=Math.min(minX,p[0]);maxX=Math.max(maxX,p[0]);minY=Math.min(minY,p[1]);maxY=Math.max(maxY,p[1]);}
+  minX-=60;minY-=60;maxX+=60;maxY+=60;
+  const SK=1.7;
+  const skid=document.createElement('canvas');
+  skid.width=Math.ceil((maxX-minX)*SK);skid.height=Math.ceil((maxY-minY)*SK);
+  const skg=skid.getContext('2d');skg.lineCap='round';
+  function drawMark(x1,y1,x2,y2,a){skg.strokeStyle=`rgba(8,9,12,${a})`;skg.lineWidth=.42*SK;
+    skg.beginPath();skg.moveTo((x1-minX)*SK,(y1-minY)*SK);skg.lineTo((x2-minX)*SK,(y2-minY)*SK);skg.stroke();}
+  // 관중석/시설 지오메트리 (메인 스트레이트 남측)
+  const sfP=pts[track.sfIdx];
+  return {asphalt,runoff,eL,eR,dash,curbR,curbW,poolSpr,headSpr,towerSpr,skid,skg,drawMark,minX,minY,SK,bounds:[minX,minY,maxX,maxY],sfP,tires,trees};
+})();
+
+/* 별하늘 */
+const stars=[];for(let i=0;i<130;i++)stars.push([Math.random(),Math.random(),Math.random()*1.4+.3]);
+
+function drawCar(c,alpha){
+  ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.ang);
+  if(alpha!=null)ctx.globalAlpha=alpha;
+  const L=CAR_LEN,Wd=CAR_W;
+  // 헤드라이트 빔
+  if(alpha==null){
+    ctx.save();ctx.globalCompositeOperation='lighter';
+    const g=ctx.createLinearGradient(L/2,0,L/2+34,0);
+    g.addColorStop(0,'rgba(255,246,214,.34)');g.addColorStop(1,'rgba(255,246,214,0)');
+    ctx.fillStyle=g;
+    ctx.beginPath();ctx.moveTo(L/2-1,-Wd*.32);ctx.lineTo(L/2+36,-Wd*2.6);ctx.lineTo(L/2+36,Wd*2.6);ctx.lineTo(L/2-1,Wd*.32);ctx.closePath();ctx.fill();
+    ctx.restore();
+  }
+  // 그림자
+  ctx.fillStyle='rgba(0,0,0,.45)';
+  ctx.beginPath();ctx.ellipse(0,0,L/2+.35,Wd/2+.35,0,0,TAU);ctx.fill();
+  // 차체
+  const r=.6;
+  ctx.fillStyle=c.body;
+  ctx.beginPath();
+  ctx.moveTo(-L/2+r,-Wd/2);ctx.lineTo(L/2-1.1,-Wd/2+.18);ctx.quadraticCurveTo(L/2,-Wd/2+.3,L/2,0);
+  ctx.quadraticCurveTo(L/2,Wd/2-.3,L/2-1.1,Wd/2-.18);ctx.lineTo(-L/2+r,Wd/2);
+  ctx.quadraticCurveTo(-L/2,Wd/2,-L/2,Wd/2-r);ctx.lineTo(-L/2,-Wd/2+r);
+  ctx.quadraticCurveTo(-L/2,-Wd/2,-L/2+r,-Wd/2);ctx.closePath();ctx.fill();
+  // 스트라이프/캐노피/스포일러
+  ctx.fillStyle=c.stripe;ctx.fillRect(-L/2+.5,-.28,L-1.3,.56);
+  ctx.fillStyle='rgba(12,18,28,.92)';
+  ctx.beginPath();ctx.ellipse(L*.06,0,1.15,Wd*.36,0,0,TAU);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.16)';
+  ctx.beginPath();ctx.ellipse(L*.14,0,.5,Wd*.26,0,0,TAU);ctx.fill();
+  ctx.fillStyle=c.stripe;ctx.fillRect(-L/2-.12,-Wd/2-.14,.5,Wd+.28); // rear wing
+  // 번호
+  ctx.save();ctx.rotate(Math.PI/2);ctx.fillStyle='rgba(255,255,255,.85)';
+  ctx.font='900 1.5px sans-serif';ctx.textAlign='center';ctx.fillText(c.num,0,L*.30);ctx.restore();
+  // 라이트
+  ctx.fillStyle='#fff7dd';ctx.fillRect(L/2-.5,-Wd/2+.18,.45,.5);ctx.fillRect(L/2-.5,Wd/2-.68,.45,.5);
+  const braking=c.brakeVis;
+  ctx.fillStyle=braking?'#ff2718':'rgba(150,20,12,.7)';
+  ctx.fillRect(-L/2,-Wd/2+.2,.32,.55);ctx.fillRect(-L/2,Wd/2-.75,.32,.55);
+  if(braking){ctx.save();ctx.globalCompositeOperation='lighter';
+    ctx.fillStyle='rgba(255,40,20,.28)';ctx.beginPath();ctx.ellipse(-L/2-.8,0,1.6,Wd*.8,0,0,TAU);ctx.fill();ctx.restore();}
+  ctx.restore();
+}
+
+function render(cam,world,tNow){
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  // 밤하늘 배경
+  const bg=ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#04070f');bg.addColorStop(1,'#0a1220');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  for(const s of stars){ctx.globalAlpha=.5+.5*Math.sin(tNow*.001+s[0]*40);
+    ctx.fillStyle='#cfe2ff';ctx.fillRect(s[0]*W,s[1]*H*.9,s[2],s[2]);}
+  ctx.globalAlpha=1;
+
+  ctx.save();
+  ctx.translate(W/2,H*.60);
+  ctx.scale(cam.zoom,cam.zoom);
+  ctx.rotate(cam.rot);
+  ctx.translate(-cam.x,-cam.y);
+
+  const [bx0,by0,bx1,by1]=R.bounds;
+  // 대지 + 잔디 스트라이프
+  ctx.fillStyle='#0a1710';ctx.fillRect(bx0,by0,bx1-bx0,by1-by0);
+  ctx.save();ctx.translate((bx0+bx1)/2,(by0+by1)/2);ctx.rotate(.35);
+  ctx.fillStyle='rgba(190,235,205,.030)';
+  const diag=hyp(bx1-bx0,by1-by0);
+  for(let sx=-diag/2;sx<diag/2;sx+=56)ctx.fillRect(sx,-diag/2,28,diag);
+  ctx.restore();
+  // 외곽 시설: 주차장(동), 잔디 패치
+  ctx.fillStyle='#0d1420';ctx.fillRect(bx0+20,by0+16,120,90);
+  // 수목
+  for(const t of R.trees){
+    ctx.fillStyle=`rgba(14,34,22,${.55+t[3]*.3})`;
+    ctx.beginPath();ctx.arc(t[0],t[1],t[2],0,TAU);ctx.fill();
+    ctx.fillStyle='rgba(40,72,50,.25)';
+    ctx.beginPath();ctx.arc(t[0]-t[2]*.25,t[1]-t[2]*.25,t[2]*.55,0,TAU);ctx.fill();
+  }
+  // 에버랜드 방향 관람차 실루엣 (북서)
+  (function ferris(){
+    const fx0=bx0+70,fy0=by0+60,r=34;
+    ctx.save();ctx.translate(fx0,fy0);ctx.strokeStyle='rgba(120,150,210,.28)';ctx.lineWidth=1.4;
+    ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.stroke();
+    for(let i=0;i<10;i++){const a=tNow*.00012+i/10*TAU;
+      ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);ctx.stroke();
+      const hue=(i*36+tNow*.02)%360;
+      ctx.fillStyle=`hsla(${hue},90%,65%,.8)`;
+      ctx.beginPath();ctx.arc(Math.cos(a)*r,Math.sin(a)*r,2.1,0,TAU);ctx.fill();}
+    ctx.restore();
+  })();
+  // 조명 풀 (트랙 바닥 밝힘)
+  for(const l of track.lights){
+    ctx.drawImage(R.poolSpr,l.x-46,l.y-46,92,92);
+  }
+  // 런오프/아스팔트
+  ctx.fillStyle='#171b23';ctx.fill(R.runoff);
+  ctx.fillStyle='#22262f';ctx.fill(R.asphalt);
+  // 스키드 마크
+  ctx.drawImage(R.skid,R.minX,R.minY,R.skid.width/R.SK,R.skid.height/R.SK);
+  // 연석
+  ctx.fillStyle='#c8323c';for(const q of R.curbR)ctx.fill(q);
+  ctx.fillStyle='#dfe3e8';for(const q of R.curbW)ctx.fill(q);
+  // 라인
+  ctx.lineWidth=.3;ctx.strokeStyle='rgba(232,238,246,.75)';ctx.stroke(R.eL);ctx.stroke(R.eR);
+  ctx.lineWidth=.22;ctx.setLineDash([3,4.5]);ctx.strokeStyle='rgba(210,220,235,.22)';ctx.stroke(R.dash);ctx.setLineDash([]);
+
+  // S/F 라인 + 그리드
+  (function sf(){
+    const i=track.sfIdx,p=track.pts[i],n=track.nrm[i],t=track.tan[i],w=track.width[i]/2;
+    ctx.save();ctx.translate(p[0],p[1]);ctx.rotate(Math.atan2(t[1],t[0]));
+    for(let a=0;a<2;a++)for(let b=-6;b<6;b++){
+      ctx.fillStyle=(a+b)%2?'#e8ecf2':'#12141a';
+      ctx.fillRect(a*1.1-1.1,b*w/6,1.1,w/6);}
+    // 스타트 갠트리: 양측 슬림 파일런 + 반투명 오버헤드 트러스
+    ctx.fillStyle='rgba(90,106,130,.95)';
+    ctx.fillRect(-.55,-w-3.2,1.1,3.2);ctx.fillRect(-.55,w,1.1,3.2);
+    ctx.fillStyle='rgba(120,140,170,.28)';ctx.fillRect(-.8,-w,1.6,w*2);
+    for(let b=-5;b<5;b++){ctx.fillStyle='rgba(230,240,255,.5)';ctx.fillRect(-.18,b*w/5+w/10-.25,.36,.5);}
+    ctx.restore();
+    // 그리드 박스
+    ctx.strokeStyle='rgba(220,228,240,.30)';ctx.lineWidth=.16;
+    for(let k=0;k<8;k++){
+      const gs=(track.sfS-16-k*7+track.len)%track.len;
+      const gi=Math.floor(gs/track.step)%track.N;
+      const gp=track.pts[gi],gn=track.nrm[gi],gt=track.tan[gi];
+      const off=(k%2?-2.7:2.7);
+      ctx.save();ctx.translate(gp[0]+gn[0]*off,gp[1]+gn[1]*off);ctx.rotate(Math.atan2(gt[1],gt[0]));
+      ctx.strokeRect(-2.6,-1.25,5.2,2.5);ctx.restore();
+    }
+  })();
+
+  // 거리 보드 (T1, T3 앞 100/50m)
+  function board(sPos,label){
+    const i=Math.floor(((sPos%track.len)+track.len)/track.step)%track.N;
+    const p=track.pts[i],n=track.nrm[i];
+    const off=track.width[i]/2+2.2;
+    ctx.save();ctx.translate(p[0]+n[0]*off,p[1]+n[1]*off);
+    ctx.rotate(cam.carUp?-cam.rot:0);
+    ctx.fillStyle='#0d2f5e';ctx.fillRect(-2,-1.4,4,2.8);
+    ctx.fillStyle='#fff';ctx.font='900 1.9px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(label,0,.1);ctx.restore();
+  }
+  const t1S=track.corners[0].i*track.step, t3S=track.corners[2].i*track.step;
+  board(t1S-100,'100');board(t1S-50,'50');board(t3S-80,'100');
+  // 코너 번호 보드
+  ctx.font='900 2.6px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  for(const c of track.corners){
+    const p=track.pts[c.i],n=track.nrm[c.i],k=track.kap[c.i];
+    const sgn=-Math.sign(k)||1;                        // 아웃코스 쪽
+    const off=track.width[c.i]/2+3.4;
+    const x=p[0]+n[0]*off*sgn,y=p[1]+n[1]*off*sgn;
+    ctx.save();ctx.translate(x,y);ctx.rotate(-cam.rot);
+    ctx.fillStyle='rgba(9,14,24,.85)';ctx.beginPath();ctx.arc(0,0,2.3,0,TAU);ctx.fill();
+    ctx.strokeStyle='rgba(90,190,255,.5)';ctx.lineWidth=.24;ctx.stroke();
+    ctx.fillStyle='#bfe3ff';ctx.fillText(c.n,0,.12);ctx.restore();
+  }
+
+  // 타이어 배리어
+  for(const tb of R.tires){
+    ctx.fillStyle='#101319';ctx.beginPath();ctx.arc(tb[0],tb[1],1.05,0,TAU);ctx.fill();
+    ctx.strokeStyle='rgba(90,100,120,.5)';ctx.lineWidth=.16;ctx.stroke();
+  }
+  // 관중석 (메인 스트레이트 남측 = 바깥)
+  (function stands(){
+    const i0=track.nearest(CP[5][0]*1,CP[5][1]*1);
+    for(let seg=0;seg<10;seg++){
+      const i=(track.sfIdx+((seg-5)*14)+track.N)%track.N;
+      const p=track.pts[i],n=track.nrm[i];
+      // 남측 = 진행(서쪽)기준 좌측 = -n
+      const x=p[0]-n[0]*(track.width[i]/2+9),y=p[1]-n[1]*(track.width[i]/2+9);
+      ctx.save();ctx.translate(x,y);ctx.rotate(Math.atan2(track.tan[i][1],track.tan[i][0]));
+      ctx.fillStyle='#141b28';ctx.fillRect(-20,-3.4,40,7);
+      for(let r=0;r<3;r++)for(let cQ=0;cQ<13;cQ++){
+        const tw=Math.sin(tNow*.004+seg*7+r*3+cQ*1.7);
+        ctx.fillStyle=tw>.88?'rgba(255,255,240,.9)':`hsla(${(seg*40+cQ*25)%360},45%,${38+r*8}%,.75)`;
+        ctx.fillRect(-19+cQ*3,-2.9+r*2.2,2.2,1.5);
+      }
+      ctx.restore();
+    }
+    // 피트 (북측 = 안쪽)
+    for(let seg=0;seg<6;seg++){
+      const i=(track.sfIdx+((seg-3)*13)+track.N)%track.N;
+      const p=track.pts[i],n=track.nrm[i];
+      const x=p[0]+n[0]*(track.width[i]/2+7),y=p[1]+n[1]*(track.width[i]/2+7);
+      ctx.save();ctx.translate(x,y);ctx.rotate(Math.atan2(track.tan[i][1],track.tan[i][0]));
+      ctx.fillStyle='#10151f';ctx.fillRect(-17,-3,34,6);
+      ctx.fillStyle='rgba(255,220,150,.5)';
+      for(let g2=0;g2<8;g2++)ctx.fillRect(-16+g2*4.2,2.2,2.6,.5);
+      ctx.restore();
+    }
+  })();
+
+  // 고스트
+  if(world.ghostPos){ const g=world.ghostPos;
+    ctx.save();ctx.globalAlpha=.38;
+    drawCar({x:g[0],y:g[1],ang:g[2],body:'#8fd8ff',stripe:'#eaffff',num:'',brakeVis:false},.38);
+    ctx.restore(); }
+
+  // 차량
+  for(const c of world.cars)if(c!==world.player)drawCar(c);
+  drawCar(world.player);
+
+  // 파티클
+  for(const p of fx.parts){
+    const k=1-p.t/p.life;
+    if(p.kind===0){ctx.fillStyle=`rgba(255,${190+Math.random()*60|0},80,${k})`;ctx.fillRect(p.x,p.y,.5,.5);}
+    else if(p.kind===1){ctx.fillStyle=`rgba(150,160,175,${k*.20})`;ctx.beginPath();ctx.arc(p.x,p.y,p.r*(1.6-k*.6),0,TAU);ctx.fill();}
+    else if(p.kind===2){ctx.fillStyle=`rgba(96,120,70,${k*.8})`;ctx.fillRect(p.x,p.y,.6,.6);}
+    else{ctx.fillStyle=p.c;ctx.globalAlpha=k;ctx.fillRect(p.x,p.y,.8,.5);ctx.globalAlpha=1;}
+  }
+  // 불꽃놀이
+  ctx.save();ctx.globalCompositeOperation='lighter';
+  for(const f of fx.fires){
+    const k=clamp(f.t/f.dur,0,1);
+    if(k<1){ctx.strokeStyle=`hsla(${f.hue},95%,70%,${1-k})`;ctx.lineWidth=.5;
+      ctx.beginPath();ctx.moveTo(f.x,f.y+40*(1-0));ctx.lineTo(f.x,f.y+40*(1-k));ctx.stroke();}
+    else{const e=(f.t-f.dur)/1.2;
+      for(let i=0;i<26;i++){const a=i/26*TAU,rr=e*26;
+        ctx.fillStyle=`hsla(${f.hue+i*4},95%,${70-e*30}%,${1-e})`;
+        ctx.fillRect(f.x+Math.cos(a)*rr,f.y+Math.sin(a)*rr-e*6,.9,.9);} }
+  }
+  // 조명탑 헤드
+  for(const l of track.lights){
+    ctx.drawImage(R.towerSpr,l.x-14,l.y-14,28,28);
+    ctx.fillStyle='#eaf4ff';ctx.fillRect(l.x-.9,l.y-.9,1.8,1.8);
+  }
+  ctx.restore();
+  ctx.restore();
+
+  renderMinimap(world);
+}
+
+/* 미니맵 (북쪽 위 고정) */
+const mmC=document.createElement('canvas');
+function renderMinimap(world){
+  const [bx0,by0,bx1,by1]=R.bounds;
+  const mw=Math.min(W*.30,235),sc=mw/(bx1-bx0),mh=(by1-by0)*sc;
+  const ox=14,oy=H-mh-14-(isTouch?110:0);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.save();ctx.translate(ox,oy);
+  ctx.globalAlpha=.92;
+  ctx.fillStyle='rgba(8,12,20,.55)';
+  ctx.beginPath();ctx.roundRect(-8,-8,mw+16,mh+16,10);ctx.fill();
+  ctx.translate(-bx0*sc,-by0*sc);ctx.scale(sc,sc);
+  ctx.lineWidth=26;ctx.strokeStyle='rgba(30,40,58,.9)';ctx.lineJoin='round';
+  const path=new Path2D();
+  for(let i=0;i<=track.N;i+=3){const p=track.pts[i%track.N];i===0?path.moveTo(p[0],p[1]):path.lineTo(p[0],p[1]);}
+  ctx.stroke(path);
+  ctx.lineWidth=14;ctx.strokeStyle='#5b7794';ctx.stroke(path);
+  // S/F
+  const sp=track.pts[track.sfIdx];ctx.fillStyle='#fff';
+  ctx.save();ctx.translate(sp[0],sp[1]);ctx.rotate(Math.atan2(track.tan[track.sfIdx][1],track.tan[track.sfIdx][0]));
+  ctx.fillRect(-2,-14,4,28);ctx.restore();
+  // 코너 라벨
+  ctx.font='900 26px sans-serif';ctx.textAlign='center';ctx.fillStyle='#9fd4ff';
+  for(const c of [0,2,5,7]){const cc=track.corners[c],p=track.pts[cc.i],n=track.nrm[cc.i],k=track.kap[cc.i];
+    const sgn=-Math.sign(k)||1;ctx.fillText(cc.n,p[0]+n[0]*sgn*46,p[1]+n[1]*sgn*46+9);}
+  // 고스트/AI/플레이어
+  if(world.ghostPos){ctx.fillStyle='#9fe8ff';ctx.beginPath();ctx.arc(world.ghostPos[0],world.ghostPos[1],13,0,TAU);ctx.fill();}
+  for(const c of world.cars){ if(c===world.player)continue;
+    ctx.fillStyle=c.body;ctx.beginPath();ctx.arc(c.x,c.y,13,0,TAU);ctx.fill();}
+  const pl=world.player;
+  ctx.fillStyle='#fff';ctx.strokeStyle='#ff3d2e';ctx.lineWidth=8;
+  ctx.beginPath();ctx.arc(pl.x,pl.y,15,0,TAU);ctx.fill();ctx.stroke();
+  ctx.restore();
+}
+
+/* 코스 가이드 맵 렌더 */
+function renderGuideMap(){
+  const c=$('guideMap');
+  const cw=c.clientWidth||640,ch=c.clientHeight||440;
+  c.width=cw*2;c.height=ch*2;
+  const g=c.getContext('2d');g.setTransform(2,0,0,2,0,0);
+  const [bx0,by0,bx1,by1]=R.bounds;
+  const pad=30;
+  const sc=Math.min((cw-pad*2)/(bx1-bx0),(ch-pad*2)/(by1-by0));
+  g.fillStyle='#0a101c';g.fillRect(0,0,cw,ch);
+  g.save();
+  g.translate(cw/2-(bx0+bx1)/2*sc,ch/2-(by0+by1)/2*sc);
+  g.scale(sc,sc);
+  const path=new Path2D();
+  for(let i=0;i<=track.N;i+=2){const p=track.pts[i%track.N];i===0?path.moveTo(p[0],p[1]):path.lineTo(p[0],p[1]);}
+  g.lineJoin='round';g.lineCap='round';
+  g.lineWidth=30;g.strokeStyle='rgba(60,90,140,.25)';g.stroke(path);
+  g.lineWidth=16;g.strokeStyle='#233246';g.stroke(path);
+  g.lineWidth=13;g.strokeStyle='#4d6a8c';g.stroke(path);
+  // 섹터 색
+  function secPath(s0,s1,col){
+    const p2=new Path2D();const i0=Math.floor(s0/track.step),i1=Math.floor(s1/track.step);
+    for(let i=i0;i<=i1;i++){const p=track.pts[((i%track.N)+track.N)%track.N];i===i0?p2.moveTo(p[0],p[1]):p2.lineTo(p[0],p[1]);}
+    g.lineWidth=13;g.strokeStyle=col;g.stroke(p2);}
+  const sf=track.sfS;
+  secPath(sf,sf+track.sec1,'rgba(255,80,64,.75)');
+  secPath(sf+track.sec1,sf+track.sec2,'rgba(64,210,255,.75)');
+  secPath(sf+track.sec2,sf+track.len,'rgba(255,210,87,.75)');
+  // S/F
+  const sp=track.pts[track.sfIdx];
+  g.save();g.translate(sp[0],sp[1]);g.rotate(Math.atan2(track.tan[track.sfIdx][1],track.tan[track.sfIdx][0]));
+  g.fillStyle='#fff';g.fillRect(-1.5,-13,3,26);g.restore();
+  // 진행 화살표
+  for(let i=0;i<track.N;i+=Math.floor(track.N/9)){
+    const p=track.pts[i],t=track.tan[i];
+    g.save();g.translate(p[0],p[1]);g.rotate(Math.atan2(t[1],t[0]));
+    g.fillStyle='rgba(240,248,255,.85)';
+    g.beginPath();g.moveTo(4,0);g.lineTo(-2,-3);g.lineTo(-2,3);g.closePath();g.fill();g.restore();
+  }
+  // 코너 라벨
+  g.font='900 17px sans-serif';g.textAlign='center';g.textBaseline='middle';
+  for(const c2 of track.corners){
+    const p=track.pts[c2.i],n=track.nrm[c2.i],k=track.kap[c2.i];
+    const sgn=-Math.sign(k)||1;
+    const x=p[0]+n[0]*sgn*26/sc*1.0*(sc>0? Math.max(1,22/22):1),y=p[1]+n[1]*sgn*26;
+    g.fillStyle='rgba(10,16,28,.9)';g.beginPath();g.arc(x,y,13,0,TAU);g.fill();
+    g.strokeStyle='rgba(90,190,255,.6)';g.lineWidth=1.4;g.stroke();
+    g.fillStyle='#cfe8ff';g.fillText(c2.n,x,y+1);
+  }
+  // 라벨
+  g.restore();
+  g.fillStyle='#8fa5c0';g.font='700 12px sans-serif';g.textAlign='left';
+  g.fillText('SPEEDWAY NIGHT COURSE · 2.538 km · 시계방향',12,ch-24);
+  g.fillStyle='#5c6b80';
+  g.fillText('S1 ● 레드 · S2 ● 시안 · S3 ● 골드 — 456m 메인 스트레이트 · T3 헤어핀 · T8–T9 트윈 코너',12,ch-8);
+}
+
+/* =====================================================================
+   GAME
+   ===================================================================== */
+const params=new URLSearchParams(location.search);
+const AUTO=params.get('auto')==='1';
+const TURBO=Math.max(1,parseInt(params.get('turbo')||'1'));
+
+const game={
+  state:'title', mode:'ta',                 // ta | race
+  cars:[],player:null,ghostPos:null,
+  raceLaps:5, countT:0,lightsOn:0,goT:0,started:false,jumped:false,
+  camX:0,camY:0,camRot:0,camZoom:5,camV:0,shake:0,
+  time:0, msgT:0, finished:false, wrongT:0, resultSaved:false,
+  paused:false,
+  togglePause(){ if(this.state!=='run')return;
+    this.paused=!this.paused;
+    if(this.paused)$('btnSound').textContent=audio.muted?'🔇 사운드 꺼짐':'🔊 사운드 켜짐';
+    $('scrPause').classList.toggle('hidden',!this.paused); },
+  resetCar(){ if(this.state!=='run'||this.paused)return;
+    const p=this.player;
+    p.place(p.s-6,0);p.curLapValid=false;p.cutAcc=0;
+    ui.toast('코스 복귀 — 이번 랩 무효');
+  },
+  startTA(){
+    this.mode='ta';this.setup(1);
+  },
+  startRace(){
+    this.mode='race';this.setup(8);
+  },
+  setup(n){
+    ui.hideAll();$('hud').classList.add('on');
+    if(isTouch)touchEl.classList.add('on');
+    $('pauseBtn').style.display='block';
+    this.cars=[];fx.parts.length=0;fx.fires.length=0;
+    R.skg.clearRect(0,0,R.skid.width,R.skid.height);
+    const startS=(track.sfS-0+track.len)%track.len;
+    if(this.mode==='ta'){
+      const p=new Car({isPlayer:true,name:'YOU',num:5,body:'#e8322a',stripe:'#fff'});
+      p.place((startS-130+track.len)%track.len,0);
+      p.progress=-130;                                  // S/F 라인에서 0
+      this.cars=[p];this.player=p;
+      ghost.load(best?.ghost);ghost.start();
+      this.started=true;this.goT=-1;
+      ui.msg('아웃랩 — 라인을 통과하면 계측 시작','실제 나이트코스 2.538km',3000);
+    }else{
+      for(let k=0;k<8;k++){
+        const dBehind=16+k*7;
+        const gs=(startS-dBehind+track.len)%track.len;
+        const off=(k%2?-2.7:2.7);
+        const isP=k===5;
+        const lv=LIVERIES[(k+1)%LIVERIES.length];       // 0번(레드)은 플레이어 전용
+        const c=new Car({isPlayer:isP,name:isP?'YOU':['K.민준','서지우','한도윤','R.하늘','정시온','L.재이','문선우'][k>5?k-1:k],
+          num:[7,12,23,46,88,5,95,11][k],body:isP?'#e8322a':lv[0],stripe:isP?'#fff':lv[1],
+          skill:isP?1:0.955+((k*37)%10)*.004,});
+        c.place(gs,off);
+        c.progress=-dBehind;                            // S/F 라인에서 0
+        this.cars.push(c); if(isP)this.player=c;
+      }
+      ghost.load(null);
+      this.started=false;this.jumped=false;
+      this.countT=0;this.lightsOn=0;this.goT=-1;
+      $('lights').style.display='flex';
+      [...$('lights').children].forEach(s=>s.classList.remove('on'));
+      ui.msg('','',1);
+    }
+    const p=this.player;
+    this.camX=p.x;this.camY=p.y;this.camRot=-p.ang-Math.PI/2;this.camZoom=5;
+    for(const c of this.cars){c.lapStartT=0;c.secStartT=0;c.lap=0;c.curSec=2;c._crossedOnce=false;}
+    p.curLapValid=false;                                 // 라인 통과 후 유효
+    p.sectors=[null,null,null];p.lastLap=null;p.bestLap=null;p.finished=false;p.penalty=0;
+    this.time=0;this.finished=false;this.state='run';this.paused=false;this.resultSaved=false;
+    this.updateHUD(true);
+  },
+  /* ---- per-frame ---- */
+  simStep(dt){
+    if(this.paused)return;
+    this.time+=dt;
+    const tMs=this.time*1000;
+    // 스타트 시퀀스 (race)
+    if(this.mode==='race'&&!this.started){
+      this.countT+=dt;
+      const should=clamp(Math.floor((this.countT-0.6)/0.75)+1,0,5);
+      if(should>this.lightsOn){ this.lightsOn=should;
+        [...$('lights').children].forEach((s,i)=>s.classList.toggle('on',i<should));
+        audio.beep(392,.14,'square',.35); }
+      if(this.lightsOn===5&&this.goT<0)this.goT=this.countT+0.5+Math.random()*0.9;
+      // 홀드 중 플레이어 물리 허용 → 움직이면 점프스타트
+      pollKeys();pollTouch();pollPad();
+      const p=this.player;
+      if(p._gx==null){p._gx=p.x;p._gy=p.y;}
+      if(!AUTO){
+        p.brakeVis=input.brake>0.15;
+        p.step(dt,{steer:input.steer,throttle:input.throttle,brake:input.brake,hb:input.hb},this);
+        if(!this.jumped&&hyp(p.x-p._gx,p.y-p._gy)>1.6){
+          this.jumped=true;p.penalty+=5000;
+          ui.msg('JUMP START!','+5초 페널티',2500);audio.beep(180,.5,'sawtooth',.5);
+        }
+      }
+      if(this.goT>0&&this.countT>=this.goT){
+        this.started=true;
+        [...$('lights').children].forEach(s=>s.classList.remove('on'));
+        setTimeout(()=>$('lights').style.display='none',900);
+        audio.beep(784,.5,'square',.5);
+        const rt=this.countT-this.goT;
+        if(!this.jumped&&input.throttle>0&&rt<.25)ui.msg('PERFECT START!','',1400);
+        else ui.msg('GO!','',1000);
+      }
+      if(!this.started){this.stepCamera(dt);return;}
+    }
+    // 입력
+    pollKeys();pollTouch();pollPad();
+    const world=this;
+    for(const c of this.cars){
+      let ctrl;
+      if(c.isPlayer&&!AUTO){ ctrl={steer:input.steer,throttle:input.throttle,brake:input.brake,hb:input.hb}; }
+      else ctrl=aiControl(c,dt,world);
+      if(c.finished)ctrl={steer:aiControl(c,dt,world).steer,throttle:.25,brake:0,hb:false};
+      c.brakeVis=ctrl.brake>0.15;
+      const wasProg=c.progress;
+      c.step(dt,ctrl,world);
+      // 스키드마크/스모크
+      if((c.drift||c.onGrass)&&Math.abs(c.vF)>6){
+        const f=[Math.cos(c.ang),Math.sin(c.ang)],rr2=[-f[1],f[0]];
+        for(const sd of [-1,1]){
+          const wx=c.x-f[0]*CAR_LEN*.32+rr2[0]*sd*CAR_W*.42,
+                wy=c.y-f[1]*CAR_LEN*.32+rr2[1]*sd*CAR_W*.42;
+          R.drawMark(wx,wy,wx-(c.vxp||0)*.016,wy-(c.vyp||0)*.016,c.onGrass?.10:.16);
+        }
+        if(c.drift&&Math.random()<.55)fx.smoke(c.x-f[0]*2,c.y-f[1]*2,c.vF);
+        if(c.onGrass&&Math.random()<.4)fx.dirt(c.x,c.y);
+      }
+      if(c.isPlayer&&c.onCurb&&Math.abs(c.vF)>10){
+        this.shake=Math.max(this.shake,.14);
+        if(Math.random()<.09)audio.beep(70,.03,'square',.10);
+      }
+      c.vxp=Math.cos(c.ang)*c.vF; c.vyp=Math.sin(c.ang)*c.vF;
+      // 랩/섹터 (플레이어 & AI 공통 — 랩 계측)
+      this.lapLogic(c,wasProg,tMs);
+    }
+    // 차량 충돌
+    for(let i=0;i<this.cars.length;i++)for(let j=i+1;j<this.cars.length;j++){
+      const a=this.cars[i],b=this.cars[j];
+      const dx=b.x-a.x,dy=b.y-a.y,d=hyp(dx,dy);
+      if(d<2.6&&d>0.01){
+        const nx=dx/d,ny=dy/d,push=(2.6-d)/2;
+        a.x-=nx*push;a.y-=ny*push;b.x+=nx*push;b.y+=ny*push;
+        const rel=(b.vxp-a.vxp)*nx+(b.vyp-a.vyp)*ny;
+        if(rel<0){ a.vF*=.97;b.vF*=.97;
+          if(a.isPlayer||b.isPlayer){ this.shake=Math.min(this.shake+Math.abs(rel)*.02,.9);
+            if(Math.abs(rel)>4){fx.sparks((a.x+b.x)/2,(a.y+b.y)/2,8);audio.thud(Math.abs(rel)/22);} } }
+      }
+    }
+    // 고스트
+    if(this.mode==='ta'){
+      const p=this.player;
+      if(p.curLapValid&&p.lapStartT>0)ghost.sample(tMs,p);
+      this.ghostPos=(ghost.active&&p.lapStartT>0)?ghost.pos(tMs-p.lapStartT):null;
+    }else this.ghostPos=null;
+    // 역주행
+    const p=this.player;
+    this.wrongT=(p._lastS!=null&&angBad(p))?this.wrongT+dt:0;
+    $('wrongway').style.display=this.wrongT>1.2?'block':'none';
+    p._lastS=p.s;
+    function angBad(pp){
+      const t=track.tan[pp.idx];
+      const f=[Math.cos(pp.ang),Math.sin(pp.ang)];
+      return (t[0]*f[0]+t[1]*f[1])<-.35&&Math.abs(pp.vF)>3;
+    }
+    fx.step(dt);
+    this.stepCamera(dt);
+  },
+  applyPlayerPhysics(c,dt){ /* 그리드 홀드 중에는 물리 동결 */ },
+  lapLogic(c,wasProg,tMs){
+    const L=track.len;
+    // 섹터/랩 경계 (progress 기반)
+    const marks=[track.sec1,track.sec2,L];
+    const prev=((wasProg%L)+L)%L, cur=((c.progress%L)+L)%L;
+    const crossed=m=>{ // prev<m<=cur (wrap 대응)
+      if(wasProg>c.progress)return false;
+      const a=wasProg,b=c.progress;
+      const base=Math.floor(a/L)*L;
+      for(let k=0;k<2;k++){const mm=base+k*L+m;if(mm>a&&mm<=b)return true;}
+      return false;
+    };
+    if(!c.isPlayer){
+      if(crossed(L)){ if(c._crossedOnce)c.lap++; else c._crossedOnce=true; }
+      if(c.lap>=game.raceLaps&&!c.finished&&game.mode==='race'){c.finished=true;c.finishT=tMs;}
+      return;
+    }
+    const p=c;
+    for(let si=0;si<3;si++){
+      if(p.curSec===si&&crossed(marks[si])){
+        const sT=tMs-p.secStartT;
+        if(si<2){
+          if(p.lapStartT>0){ p.sectors[si]=sT;
+            const ref=best?.sectors?.[si];
+            const col=ref&&sT<ref?'#c792ff':(ref?'#ffd257':'#3dff8a');
+            ui.sector(`S${si+1}  ${fmtMs(sT)}`,col);
+            audio.beep(sT<(ref||1e9)?988:660,.12,'sine',.25);
+          }
+          p.secStartT=tMs; p.curSec=si+1;
+        }else{ // S/F 라인
+          if(p.lapStartT===0){                          // 계측 시작 (아웃랩/레이스 1랩)
+            p.lapStartT=tMs;p.secStartT=tMs;
+            p.curLapValid=true;p.cutAcc=0;p.sectors=[null,null,null];
+            if(game.mode==='ta'){ghost.start();}
+            ui.toast(game.mode==='ta'?'계측 시작!':'LAP 1');
+          }else{                                        // 랩 완료
+            const lapT=tMs-p.lapStartT;
+            p.sectors[2]=lapT-(p.sectors[0]||0)-(p.sectors[1]||0);
+            p.lastLap=p.curLapValid?lapT:null;
+            if(p.curLapValid){
+              if(!p.bestLap||lapT<p.bestLap)p.bestLap=lapT;
+              this.onValidLap(lapT,p,tMs);
+            } else ui.toast('무효 랩 — 기록 제외');
+            p.lap++;
+            p.lapStartT=tMs;p.secStartT=tMs;p.curLapValid=true;p.cutAcc=0;
+            p.sectors=[null,null,null];
+            if(game.mode==='ta')ghost.start();
+            if(game.mode==='race'&&p.lap>=game.raceLaps&&!p.finished){
+              p.finished=true;p.finishT=tMs+p.penalty;
+              this.finishRace();
+            }
+          }
+          p.curSec=0;
+          this.updateHUD(true);
+        }
+      }
+    }
+  },
+  onValidLap(lapT,p,tMs){
+    const wasBest=best?best.ms:null;
+    const isRecord=!wasBest||lapT<wasBest;
+    ui.msg(fmtMs(lapT),isRecord?'★ 개인 최고 기록!':'랩 완료',2200);
+    if(isRecord){
+      best={ms:lapT,sectors:[p.sectors[0],p.sectors[1],p.sectors[2]],date:Date.now(),
+            ghost:this.mode==='ta'?ghost.rec.slice(0,1400):(best?.ghost||null)};
+      store.write('best',best);
+      audio.fanfare();
+      fx.confetti(p.x,p.y);
+      for(let i=0;i<6;i++)setTimeout(()=>{
+        const sp=R.sfP;fx.firework(sp[0]+(Math.random()-.5)*140,sp[1]-40-Math.random()*60);},i*280);
+      if(this.mode==='ta')ghost.load(best.ghost);
+    }else audio.beep(880,.2,'sine',.3);
+    // top10
+    const q={name:null,ms:lapT,date:Date.now(),mode:this.mode};
+    const worst=top10.length<10?Infinity:top10[top10.length-1].ms;
+    if(lapT<worst)this.pendingEntry=q;
+  },
+  finishRace(){
+    setTimeout(()=>this.showResult(),1400);
+    ui.msg('🏁 FINISH!','',2000);
+    const p=this.player;
+    const pos=this.position(p);
+    if(pos===1){ for(let i=0;i<10;i++)setTimeout(()=>{
+      fx.firework(p.x+(Math.random()-.5)*180,p.y-40-Math.random()*80);},i*220); }
+  },
+  position(car){
+    const arr=[...this.cars].sort((a,b)=> (b.lap*1e9+b.progress)-(a.lap*1e9+a.progress) );
+    return arr.indexOf(car)+1;
+  },
+  /* ---- 결과 ---- */
+  showResult(){
+    if(this.resultSaved)return; this.resultSaved=true;
+    this.state='result';
+    $('hud').classList.remove('on');touchEl.classList.remove('on');$('pauseBtn').style.display='none';
+    const p=this.player;
+    const isTA=this.mode==='ta';
+    $('resKicker').textContent=isTA?'TIME ATTACK RESULT':'RACE RESULT · 5 LAPS';
+    const order=[...this.cars].sort((a,b)=>{
+      const af=a.finished?a.finishT:Infinity,bf=b.finished?b.finishT:Infinity;
+      if(af!==bf)return af-bf;
+      return (b.lap*1e9+b.progress)-(a.lap*1e9+a.progress);
+    });
+    const pos=order.indexOf(p)+1;
+    $('resTitle').textContent=isTA?'타임어택 종료':(pos===1?'🏆 우승!':`P${pos} 피니시`);
+    $('resTime').textContent=fmtMs(p.bestLap);
+    const isNew=best&&p.bestLap&&best.ms===p.bestLap&&Date.now()-best.date<120000;
+    $('resNew').style.display=isNew?'inline-block':'none';
+    // 섹터
+    let sh='';
+    ['S1','S2','S3'].forEach((s,i)=>{
+      const v=best?.sectors?.[i];
+      sh+=`<div class="sec">${s} 베스트<b class="mono">${fmtMs(v)}</b></div>`;
+    });
+    sh+=`<div class="sec">이론상 베스트<b class="mono">${fmtMs(best?.sectors?.reduce((a,b)=>a+(b||0),0)||null)}</b></div>`;
+    $('resSectors').innerHTML=sh;
+    // 순위표
+    if(!isTA){
+      const arr=order;
+      let h='<table class="lb"><tr><th>P</th><th>드라이버</th><th>NO.</th><th>베스트 랩</th><th>비고</th></tr>';
+      arr.forEach((c,i)=>{
+        h+=`<tr${c.isPlayer?' class="me"':''}><td class="rank">${i+1}</td><td>${c.name}</td><td>${c.num}</td>
+        <td class="mono">${fmtMs(c.isPlayer?c.bestLap:c.aiBest||null)}</td><td>${c.isPlayer&&c.penalty?'+'+(c.penalty/1000)+'s 페널티':''}</td></tr>`;});
+      $('resTable').innerHTML=h+'</table>';
+    }else $('resTable').innerHTML='';
+    // top10 이름 입력
+    const pe=this.pendingEntry;
+    $('nameRow').style.display=pe?'block':'none';
+    if(pe){ $('nameIn').value=store.read('lastName','YOU'); setTimeout(()=>$('nameIn').focus(),150); }
+    ui.show('scrResult');
+  },
+  saveEntry(){
+    const pe=this.pendingEntry; if(!pe)return;
+    pe.name=($('nameIn').value.trim()||'YOU').slice(0,8);
+    store.write('lastName',pe.name);
+    top10.forEach(r=>delete r.last); pe.last=true;
+    top10.push(pe);top10.sort((a,b)=>a.ms-b.ms);top10=top10.slice(0,10);
+    store.write('top10',top10);
+    this.pendingEntry=null;$('nameRow').style.display='none';
+    ui.toast('리더보드에 저장되었습니다');
+  },
+  /* ---- 카메라/HUD ---- */
+  stepCamera(dt){
+    const p=this.player;
+    const v=Math.abs(p.vF);
+    const tz=clamp(5.4-v*.030,3.9,5.4)*Math.min(W,H)/760*1.35;
+    this.camZoom=lerp(this.camZoom,tz,clamp(dt*2,0,1));
+    const targRot=-p.ang-Math.PI/2;
+    let d=angNorm(targRot-this.camRot);
+    this.camRot+=d*clamp(dt*3.4,0,1);
+    const ahead=12+v*.5;
+    const tx=p.x+Math.cos(p.ang)*ahead,ty=p.y+Math.sin(p.ang)*ahead;
+    this.camX=lerp(this.camX,tx,clamp(dt*4.5,0,1));
+    this.camY=lerp(this.camY,ty,clamp(dt*4.5,0,1));
+    if(this.shake>0){this.camX+=(Math.random()-.5)*this.shake;this.camY+=(Math.random()-.5)*this.shake;this.shake*=Math.pow(.02,dt);}
+  },
+  updateHUD(full){
+    const p=this.player;if(!p)return;
+    const tMs=this.time*1000;
+    const running=p.lapStartT>0&&this.state==='run';
+    $('lapTime').textContent=running?fmtMs(tMs-p.lapStartT):'0:00.000';
+    // 델타 (고스트 대비)
+    const dEl=$('delta');
+    if(this.mode==='ta'&&best&&running&&p.curLapValid){
+      // 현재 s 진행도 기반 간이 델타: 고스트가 같은 s에 도달한 시각과 비교 → 고스트 pos 기반 근사
+      if(this.ghostPos){
+        const gLoc=track.locate(this.ghostPos[0],this.ghostPos[1]);
+        let dd=p.s-gLoc.s;
+        if(dd>track.len/2)dd-=track.len;if(dd<-track.len/2)dd+=track.len;
+        const est=-dd/Math.max(Math.abs(p.vF),8)*1000;
+        dEl.textContent=fmtDelta(est);
+        dEl.className='mono '+(est<=0?'minus':'plus');
+      }
+    }else{dEl.textContent='';}
+    $('speed').innerHTML=Math.round(Math.abs(p.vF)*3.6)+'<small> km/h</small>';
+    const rpm01=clamp((Math.abs(p.vF)*3.6%42)/42*.85+Math.abs(p.vF)/track.VMAX/3.6*.3+ (input.throttle?.12:0),0,1);
+    const gear=p.vF<-.5?'R':(Math.abs(p.vF)<.5?'N':String(1+Math.min(5,Math.floor(Math.abs(p.vF)*3.6/42))));
+    $('gear').textContent=gear==='R'||gear==='N'?gear:gear+'단';
+    $('rpmFill').style.width=(rpm01*100)+'%';
+    if(full){
+      $('lastBox').textContent=fmtMs(p.lastLap);
+      $('bestBox').textContent=fmtMs(best?Math.min(best.ms,p.bestLap||Infinity):p.bestLap);
+      if(this.mode==='race'){
+        $('posBox').textContent='P'+this.position(p);
+        $('lapBox').textContent=Math.min(p.lap+1,this.raceLaps)+' / '+this.raceLaps;
+      }else{
+        $('posBox').textContent='TA';
+        $('lapBox').textContent=p.lapStartT>0?('LAP '+(p.lap+1)):'OUT LAP';
+      }
+    }
+    // 엔진 사운드
+    audio.engine(rpm01,input.throttle,p.isPlayer?1:0);
+    audio.skid(p.drift?clamp(p.slip/9,0,1):0);
+    if(this.mode==='race'&&this.state==='run')$('posBox').textContent='P'+this.position(p);
+  }
+};
+
+/* AI 베스트랩 기록 (결과표용) */
+setInterval(()=>{ if(game.state!=='run')return;
+  for(const c of game.cars){ if(c.isPlayer)continue;
+    if(c._lapMark==null)c._lapMark=c.lap;
+    if(c.lap>c._lapMark){ c._lapMark=c.lap;
+      const t=72000+Math.random()*4000+(1-c.skill)*120000;
+      if(!c.aiBest||t<c.aiBest)c.aiBest=t; } }
+},500);
+
+/* ---------- main loop ---------- */
+let lastT=performance.now(),accum=0;
+const STEP=1/120;
+function frame(now){
+  requestAnimationFrame(frame);
+  let dt=(now-lastT)/1000;lastT=now;
+  if(dt>.09)dt=.09;
+  if(game.state==='run'&&!game.paused){
+    accum+=dt*TURBO;
+    let n=0;
+    while(accum>=STEP&&n++<TURBO*14){accum-=STEP;game.simStep(STEP);}
+    game.updateHUD(false);
+  }
+  if(game.state==='run'||game.state==='result'){
+    render({x:game.camX,y:game.camY,rot:game.camRot,zoom:game.camZoom,carUp:true},game,now);
+  }else{
+    renderAttract(now);
+  }
+}
+/* 타이틀 배경: 코스 시네마틱 궤도 카메라 */
+let attractS=0;
+function renderAttract(now){
+  attractS=(attractS+ .5)%track.len;
+  const i=Math.floor(attractS/track.step)%track.N;
+  const p=track.pts[i],t=track.tan[i];
+  render({x:p[0],y:p[1],rot:-Math.atan2(t[1],t[0])-Math.PI/2,zoom:3.1*Math.min(W,H)/760*1.35,carUp:true},
+         {cars:[],player:{x:-9999,y:-9999,ang:0,body:'#000',stripe:'#000',num:'',vF:0},ghostPos:null},now);
+}
+requestAnimationFrame(frame);
+
+/* ---------- wire UI ---------- */
+$('btnTA').onclick=()=>{audio.init();game.startTA();};
+$('btnRace').onclick=()=>{audio.init();game.startRace();};
+$('btnGuide').onclick=()=>{ui.show('scrGuide');setTimeout(renderGuideMap,30);};
+$('btnGuideBack').onclick=()=>ui.show('scrTitle');
+$('btnRecords').onclick=()=>{ui.leaderboard();ui.show('scrRecords');};
+$('btnRecBack').onclick=()=>ui.show('scrTitle');
+$('btnWipe').onclick=()=>{ if(confirm('모든 로컬 기록(베스트랩·고스트·리더보드)을 삭제할까요?')){
+  best=null;top10=[];store.write('best',null);store.write('top10',[]);ghost.load(null);
+  ui.titleBest();ui.leaderboard(); } };
+$('btnRetry').onclick=()=>{ if(game.pendingEntry)game.saveEntry();
+  game.mode==='ta'?game.startTA():game.startRace(); };
+$('btnResTitle').onclick=()=>{ if(game.pendingEntry)game.saveEntry();
+  game.state='title';ui.titleBest();ui.show('scrTitle'); };
+$('btnSaveName').onclick=()=>game.saveEntry();
+$('nameIn').addEventListener('keydown',e=>{if(e.key==='Enter')game.saveEntry();});
+$('btnResume').onclick=()=>game.togglePause();
+$('btnFinish').onclick=()=>{game.paused=false;$('scrPause').classList.add('hidden');game.showResult();};
+$('btnRestart').onclick=()=>{game.paused=false;$('scrPause').classList.add('hidden');
+  game.mode==='ta'?game.startTA():game.startRace();};
+$('btnQuit').onclick=()=>{if(game.pendingEntry)game.saveEntry();
+  game.paused=false;game.state='title';
+  $('hud').classList.remove('on');touchEl.classList.remove('on');$('pauseBtn').style.display='none';
+  ui.titleBest();ui.show('scrTitle');};
+$('btnSound').onclick=function(){audio.setMuted(!audio.muted);
+  this.textContent=audio.muted?'🔇 사운드 꺼짐':'🔊 사운드 켜짐';};
+$('pauseBtn').onclick=()=>game.togglePause();
+addEventListener('visibilitychange',()=>{if(document.hidden&&game.state==='run'&&!game.paused)game.togglePause();});
+ui.titleBest();
+
+/* 디버그 훅 (자동 주행 검증용) */
+window.__YNR={game,track,best:()=>best,top10:()=>top10,ghost,ui,
+  startTA:()=>game.startTA(),startRace:()=>game.startRace()};
+if(AUTO){ setTimeout(()=>{game.startTA();},300); }
+</script>
+</body>
+</html>
