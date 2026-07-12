@@ -151,7 +151,7 @@ const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.VSMShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.98;
 container.appendChild(renderer.domElement);
@@ -188,6 +188,9 @@ const key = new THREE.DirectionalLight(0xffffff, 0.8);
 key.position.set(3, 8, 6);
 key.castShadow = true;
 key.shadow.mapSize.set(2048, 2048);
+key.shadow.radius = 7;          // VSM blur -> soft area-light look
+key.shadow.blurSamples = 16;
+key.shadow.bias = -0.0003;
 key.shadow.camera.left = -9; key.shadow.camera.right = 9;
 key.shadow.camera.top = 7;   key.shadow.camera.bottom = -7;
 scene.add(key);
@@ -213,7 +216,24 @@ const machine = new THREE.Group();
 scene.add(machine);
 
 const PINK = 0xf0619e, PINK_DARK = 0xd6437f, PINK_LIGHT = 0xf9a8cd;
-const pinkMat      = new THREE.MeshStandardMaterial({ color:PINK, roughness:0.55, metalness:0.05 });
+const WEAR_ROUGH = (function () {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 256;
+  const c = cv.getContext('2d');
+  c.fillStyle = 'rgb(140,140,140)';
+  c.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 60; i++) {
+    const v = 110 + Math.random()*70;
+    c.fillStyle = `rgba(${v},${v},${v},0.35)`;
+    c.beginPath();
+    c.arc(Math.random()*256, Math.random()*256, 8 + Math.random()*34, 0, Math.PI*2);
+    c.fill();
+  }
+  const t = new THREE.CanvasTexture(cv);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+})();
+const pinkMat      = new THREE.MeshStandardMaterial({ color:PINK, roughness:1.0, roughnessMap:WEAR_ROUGH, metalness:0.05 });
 const pinkDarkMat  = new THREE.MeshStandardMaterial({ color:PINK_DARK, roughness:0.55, metalness:0.05 });
 const pinkLightMat = new THREE.MeshStandardMaterial({ color:PINK_LIGHT, roughness:0.5, metalness:0.05 });
 const whiteGloss = new THREE.MeshStandardMaterial({ color:0xf2eff4, roughness:0.3, metalness:0.12 });
@@ -225,8 +245,24 @@ const floorPink = new THREE.MeshStandardMaterial({ color:0xf49ec7, roughness:0.5
 
 const CAB_W = 8.0, CAB_D = 3.2, H = 3.9;
 
+// beveled box: renders read as molded plastic instead of CG-sharp slabs
+function roundedBoxGeo(w, h, d, r) {
+  const s = new THREE.Shape();
+  const x = w/2 - r, y = h/2 - r;
+  s.absarc(x, y, r, 0, Math.PI/2);
+  s.absarc(-x, y, r, Math.PI/2, Math.PI);
+  s.absarc(-x, -y, r, Math.PI, Math.PI*1.5);
+  s.absarc(x, -y, r, Math.PI*1.5, Math.PI*2);
+  const g = new THREE.ExtrudeGeometry(s, {
+    depth: Math.max(d - r*2, 0.01), bevelEnabled: true,
+    bevelSegments: 3, steps: 1, bevelSize: r*0.98, bevelThickness: r,
+  });
+  g.center();
+  return g;
+}
+
 // body
-const base = new THREE.Mesh(new THREE.BoxGeometry(CAB_W+0.5, 1.5, CAB_D+0.5), pinkMat);
+const base = new THREE.Mesh(roundedBoxGeo(CAB_W+0.5, 1.5, CAB_D+0.5, 0.09), pinkMat);
 base.position.y = -0.75;
 base.castShadow = base.receiveShadow = true;
 machine.add(base);
@@ -300,7 +336,7 @@ const headerGeo = scallopBand(CAB_W + 0.5, 0.52, 8);
   band.castShadow = true;
   machine.add(band);
 });
-const headerBody = new THREE.Mesh(new THREE.BoxGeometry(CAB_W + 0.5, 0.52, CAB_D + 0.5), pinkMat);
+const headerBody = new THREE.Mesh(roundedBoxGeo(CAB_W + 0.5, 0.52, CAB_D + 0.5, 0.08), pinkMat);
 headerBody.position.y = H + 0.26;
 machine.add(headerBody);
 
@@ -388,7 +424,7 @@ machine.add(ceilPanel);
 // front control deck: token slot, twin joysticks, pink + yellow buttons
 const deck = new THREE.Group();
 machine.add(deck);
-const deckBody = new THREE.Mesh(new THREE.BoxGeometry(CAB_W*0.92, 0.78, 1.35), pinkMat);
+const deckBody = new THREE.Mesh(roundedBoxGeo(CAB_W*0.92, 0.78, 1.35, 0.09), pinkMat);
 deckBody.position.set(0, -0.4, CAB_D/2 + 0.82);
 deckBody.castShadow = deckBody.receiveShadow = true;
 deck.add(deckBody);
@@ -492,7 +528,7 @@ function createClawRig(colorHex, name) {
   scene.add(root);
 
   // trolley: silver block + player-color band
-  const trolley = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.18, 0.5), pinkMat);
+  const trolley = new THREE.Mesh(roundedBoxGeo(0.5, 0.18, 0.5, 0.04), pinkMat);
   trolley.castShadow = true;
   trolley.position.y = RAIL_Y + 0.16;
   root.add(trolley);
@@ -634,12 +670,28 @@ const HEART_GEO = (function () {
   g.scale(0.21, 0.21, 0.21);    // ~0.46 wide, fits the PRIZE_R physics sphere
   return g;
 })();
+const FABRIC_BUMP = (function () {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 256;
+  const c = cv.getContext('2d');
+  const img = c.createImageData(256, 256);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = 128 + (Math.random() - 0.5) * 78;
+    img.data[i] = img.data[i+1] = img.data[i+2] = v;
+    img.data[i+3] = 255;
+  }
+  c.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(cv);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(3, 3);
+  return t;
+})();
 const HEART_MATS = [
-  new THREE.MeshStandardMaterial({ color:0xff4f92, roughness:0.75 }),
-  new THREE.MeshStandardMaterial({ color:0xf27ab1, roughness:0.75 }),
-  new THREE.MeshStandardMaterial({ color:0xe8386e, roughness:0.75 }),
-  new THREE.MeshStandardMaterial({ color:0xf5a04c, roughness:0.75 }),
-  new THREE.MeshStandardMaterial({ color:0xf7c4da, roughness:0.7 }),
+  new THREE.MeshStandardMaterial({ color:0xff4f92, roughness:0.8, bumpMap:FABRIC_BUMP, bumpScale:1.6 }),
+  new THREE.MeshStandardMaterial({ color:0xf27ab1, roughness:0.8, bumpMap:FABRIC_BUMP, bumpScale:1.6 }),
+  new THREE.MeshStandardMaterial({ color:0xe8386e, roughness:0.8, bumpMap:FABRIC_BUMP, bumpScale:1.6 }),
+  new THREE.MeshStandardMaterial({ color:0xf5a04c, roughness:0.8, bumpMap:FABRIC_BUMP, bumpScale:1.6 }),
+  new THREE.MeshStandardMaterial({ color:0xf7c4da, roughness:0.78, bumpMap:FABRIC_BUMP, bumpScale:1.6 }),
   new THREE.MeshStandardMaterial({ color:0xe4e4ee, roughness:0.25, metalness:1.0 }),  // silver
 ];
 const HEART_WEIGHTS = [3, 3, 2, 2, 2, 1];
@@ -675,6 +727,44 @@ function spawnPrizes(n) {
   }
 }
 spawnPrizes(PRIZE_COUNT);
+
+// contact-shadow decals: cheap baked-AO look where things meet
+(function contactAO() {
+  const tex = getShadowTexture();
+  function spot(x, z, s, o, y) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ map:tex, transparent:true, opacity:o, depthWrite:false }));
+    m.rotation.x = -Math.PI/2;
+    m.position.set(x, y === undefined ? 0.009 : y, z);
+    m.scale.set(s, s, 1);
+    m.renderOrder = 1;
+    scene.add(m);
+    return m;
+  }
+  [[-CAB_W/2, -CAB_D/2],[CAB_W/2, -CAB_D/2],[-CAB_W/2, CAB_D/2],[CAB_W/2, CAB_D/2]]
+    .forEach(([x, z]) => spot(x, z, 0.55, 0.45));
+  spot(HOLE.x, HOLE.z, 2.2, 0.38);
+  const footprint = spot(0, 0.9, 1, 0.45, -1.485);
+  footprint.scale.set(CAB_W + 4.5, CAB_D + 5.5, 1);
+  // wall-floor seam shading
+  const lc = document.createElement('canvas');
+  lc.width = 4; lc.height = 64;
+  const c = lc.getContext('2d');
+  const gr = c.createLinearGradient(0, 0, 0, 64);
+  gr.addColorStop(0, 'rgba(0,0,0,0.32)');
+  gr.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = gr; c.fillRect(0, 0, 4, 64);
+  const ltex = new THREE.CanvasTexture(lc);
+  [[-CAB_D/2 + 0.31, 0], [CAB_D/2 - 0.31, Math.PI]].forEach(([z, rz]) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(CAB_W, 0.62),
+      new THREE.MeshBasicMaterial({ map:ltex, transparent:true, depthWrite:false }));
+    m.rotation.x = -Math.PI/2;
+    m.rotation.z = rz;
+    m.position.set(0, 0.007, z);
+    m.renderOrder = 1;
+    scene.add(m);
+  });
+})();
 
 // ---------- physics ----------
 function physicsStep(dt) {
@@ -1293,6 +1383,47 @@ function updateAttract(dt) {
   attract.rig.apply(x, RAIL_Y, z, 0.6 + Math.sin(attract.t*1.2)*0.35);
 }
 
+// ---------- render-quality post pass (vignette, grain, gentle grade) ----------
+const POST_OK = renderer.capabilities.isWebGL2;
+let postRT = null, postScene = null, postCam = null, postMat = null;
+if (POST_OK) {
+  postRT = new THREE.WebGLRenderTarget(2, 2, { samples: 4, type: THREE.HalfFloatType });
+  postScene = new THREE.Scene();
+  postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  postMat = new THREE.ShaderMaterial({
+    uniforms: { tDiffuse: { value: postRT.texture }, uTime: { value: 0 } },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+    fragmentShader: [
+      // rendering into a target skips three's tone mapping + sRGB output,
+      // so this pass does ACES + gamma itself, then the photographic grade
+      'uniform sampler2D tDiffuse; uniform float uTime; varying vec2 vUv;',
+      'float rnd(vec2 c){ return fract(sin(dot(c, vec2(12.9898,78.233))) * 43758.5453); }',
+      'vec3 aces(vec3 x){ return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14), 0.0, 1.0); }',
+      'void main(){',
+      '  vec3 col = texture2D(tDiffuse, vUv).rgb;',
+      '  col = aces(col * 0.98);',
+      '  col = pow(col, vec3(1.0/2.2));',
+      '  float lum = dot(col, vec3(0.299,0.587,0.114));',
+      '  col = mix(vec3(lum), col, 1.12);',
+      '  col = col * 1.03 - 0.008;',
+      '  float d = distance(vUv, vec2(0.5, 0.46));',
+      '  col *= 1.0 - smoothstep(0.42, 0.95, d) * 0.28;',
+      '  col += (rnd(vUv * 917.0 + uTime) - 0.5) * 0.04;',
+      '  gl_FragColor = vec4(col, 1.0);',
+      '}',
+    ].join('\n'),
+    depthTest: false, depthWrite: false,
+  });
+  postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMat));
+}
+function setPostSize() {
+  if (postRT) {
+    const pr = renderer.getPixelRatio();
+    postRT.setSize(Math.floor(innerWidth * pr), Math.floor(innerHeight * pr));
+  }
+}
+setPostSize();
+
 // ---------- main loop ----------
 let last = performance.now();
 function loop(now) {
@@ -1305,7 +1436,15 @@ function loop(now) {
   physicsStep(dt);
   camera.position.x = Math.sin(now/1000*0.1)*0.3;
   camera.lookAt(0, 2.42, 0);
-  renderer.render(scene, camera);
+  if (POST_OK) {
+    postMat.uniforms.uTime.value = (now * 0.001) % 10;
+    renderer.setRenderTarget(postRT);
+    renderer.render(scene, camera);
+    renderer.setRenderTarget(null);
+    renderer.render(postScene, postCam);
+  } else {
+    renderer.render(scene, camera);
+  }
 }
 requestAnimationFrame(loop);
 
@@ -1313,6 +1452,7 @@ addEventListener('resize', () => {
   camera.aspect = innerWidth/innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  setPostSize();
 });
 </script>
 </body>
