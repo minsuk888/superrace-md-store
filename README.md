@@ -4,6 +4,9 @@
 
 슈퍼레이스 5라운드(용인 나이트레이스) 대비 팬 미니게임 — **[`games/yongin-night-race/index.html`](games/yongin-night-race/index.html)**
 
+**▶ 바로 플레이 (모바일/PC)**: <https://minsuk888.github.io/superrace-md-store/>
+(GitHub Actions가 `games/` 변경 시 자동으로 GitHub Pages에 배포합니다 — `.github/workflows/pages.yml`)
+
 에버랜드 스피드웨이 **나이트코스**를 실제 제원 그대로 재현한 톱다운 레이싱 게임입니다.
 
 - **실제 코스 재현**: 총장 2.538km · 코너 11개 · 메인 스트레이트 456m · 시계방향 · 트랙 폭 11–15m
