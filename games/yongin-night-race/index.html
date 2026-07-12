@@ -294,6 +294,7 @@
       <button class="btn" id="btnResume">계속하기</button>
       <button class="btn cyan" id="btnFinish">🏁 세션 종료 · 결과 보기</button>
       <button class="btn ghost" id="btnAuto">🚗 오토 액셀: 켜짐</button>
+      <button class="btn ghost" id="btnSens">🎯 조향 감도: 보통</button>
       <button class="btn ghost" id="btnRestart">처음부터</button>
       <button class="btn ghost" id="btnSound">🔊 사운드 켜짐</button>
       <button class="btn ghost" id="btnQuit">타이틀로</button>
@@ -590,6 +591,7 @@ function pollKeys(){
 const touchEl=$('touch');
 const isTouch=matchMedia('(pointer:coarse)').matches;
 let autoAccel=store.read('autoAccel2',false);           // 기본 꺼짐 — AUTO 버튼으로 토글
+let steerSens=store.read('steerSens',1);                // 조향 감도: .85 부드럽게 / 1 보통 / 1.2 강하게
 if(isTouch){ $('ctlHint').innerHTML='◀▶ 조향 · <b>+</b> 가속 · <b>−</b> 브레이크 · 드리프트/복귀 · <b>AUTO</b>를 켜면 가속이 자동입니다'; }
 const tstate={L:0,R:0,A:0,B:0,HB:0,RST:0,AUTO:0};
 const T_BTNS=[['tL','L'],['tR','R'],['tA','A'],['tB','B'],['tHB','HB'],['tRst','RST'],['tAuto','AUTO']];
@@ -714,12 +716,13 @@ class Car{
     const slope=track.slope[loc.i]||0;
     // 조향 (속도 감응 + 램프)
     const v=Math.abs(this.vF);
-    const rate=steer!==0&&Math.sign(steer)!==Math.sign(this.steerCur||0)?9:(steer!==0?4.6:7);
+    const rate=steer!==0&&Math.sign(steer)!==Math.sign(this.steerCur||0)?12:(steer!==0?7:9);
     this.steerCur=(this.steerCur||0)+clamp(steer-(this.steerCur||0),-rate*dt,rate*dt);
-    const steerMax=.55/(1+v*.085);
+    const sens=this.isPlayer?steerSens:1;
+    const steerMax=.60*sens/(1+v*.075);
     const target=this.steerCur*steerMax*(hb?1.5:1);
     this.steerVis=lerp(this.steerVis,steer,clamp(dt*8,0,1));
-    const gripYaw=(this.onGrass?7.4:13.6)/Math.max(v,4);
+    const gripYaw=(this.onGrass?8.2:15.5*(sens>1?1.08:1))/Math.max(v,4);
     let yaw=clamp(target*v/2.62,-gripYaw,gripYaw);
     if(this.vF<0)yaw*=-1;
     this.ang+=yaw*dt*clamp(v/2,0,1);
@@ -1703,7 +1706,7 @@ const game={
     this.camZoom=lerp(this.camZoom,tz,clamp(dt*2,0,1));
     const targRot=-p.ang-Math.PI/2;
     let d=angNorm(targRot-this.camRot);
-    this.camRot+=d*clamp(dt*3.4,0,1);
+    this.camRot+=d*clamp(dt*4.4,0,1);
     const ahead=12+v*.5;
     const tx=p.x+Math.cos(p.ang)*ahead,ty=p.y+Math.sin(p.ang)*ahead;
     this.camX=lerp(this.camX,tx,clamp(dt*4.5,0,1));
@@ -1814,6 +1817,15 @@ $('btnResume').onclick=()=>game.togglePause();
 $('btnFinish').onclick=()=>{game.paused=false;$('scrPause').classList.add('hidden');game.showResult();};
 $('btnAuto').onclick=()=>setAutoAccel(!autoAccel);
 syncAutoUI();
+const SENS_STEPS=[[.85,'부드럽게'],[1,'보통'],[1.2,'강하게']];
+function syncSensUI(){const s=SENS_STEPS.find(x=>x[0]===steerSens)||SENS_STEPS[1];
+  $('btnSens').textContent='🎯 조향 감도: '+s[1];}
+syncSensUI();
+$('btnSens').onclick=()=>{
+  const i=SENS_STEPS.findIndex(x=>x[0]===steerSens);
+  steerSens=SENS_STEPS[(i+1)%SENS_STEPS.length][0];
+  store.write('steerSens',steerSens);syncSensUI();
+  ui.toast('조향 감도: '+SENS_STEPS.find(x=>x[0]===steerSens)[1]);};
 $('btnRestart').onclick=()=>{game.paused=false;$('scrPause').classList.add('hidden');
   game.mode==='ta'?game.startTA():game.startRace();};
 $('btnQuit').onclick=()=>{if(game.pendingEntry)game.saveEntry();
