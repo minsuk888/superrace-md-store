@@ -5,7 +5,10 @@
 슈퍼레이스 5라운드(용인 나이트레이스) 대비 팬 미니게임 — **[`games/yongin-night-race/index.html`](games/yongin-night-race/index.html)**
 
 **▶ 바로 플레이 (모바일/PC)**: <https://minsuk888.github.io/superrace-md-store/>
-(GitHub Actions가 `games/` 변경 시 자동으로 GitHub Pages에 배포합니다 — `.github/workflows/pages.yml`)
+
+> 최초 1회만: 저장소 **Settings → Pages → Source**를 **GitHub Actions**로 선택하면
+> 이후 `games/` 변경 시 자동 배포됩니다(`.github/workflows/pages.yml`).
+> 활성화 후 Actions 탭에서 실패한 `Deploy game to GitHub Pages` 실행을 **Re-run** 하면 즉시 반영됩니다.
 
 에버랜드 스피드웨이 **나이트코스**를 실제 제원 그대로 재현한 톱다운 레이싱 게임입니다.
 
