@@ -114,6 +114,7 @@
   #tL{left:18px}#tR{left:calc(30px + clamp(64px,17vw,96px))}
   #tB{right:calc(30px + clamp(64px,17vw,96px))}#tA{right:18px;background:rgba(160,40,30,.45)}
   #tHB{right:18px;bottom:calc(34px + env(safe-area-inset-bottom) + clamp(64px,17vw,96px));width:clamp(48px,12vw,64px);height:clamp(48px,12vw,64px);font-size:clamp(11px,3vw,13px)}
+  #tRst{right:calc(30px + clamp(64px,17vw,96px));bottom:calc(34px + env(safe-area-inset-bottom) + clamp(64px,17vw,96px));width:clamp(48px,12vw,64px);height:clamp(48px,12vw,64px);font-size:clamp(11px,3vw,13px);background:rgba(40,80,60,.45)}
   /* results */
   #resTitle{font-size:clamp(26px,5vw,44px);font-weight:900;margin:8px 0 2px}
   .res-time{font-size:clamp(30px,6vw,52px);font-weight:900;color:var(--gold)}
@@ -141,7 +142,7 @@
     #gear{font-size:11px}
     #rpm{width:86px;height:4px}
     .hud-top{top:calc(64px + env(safe-area-inset-top))}
-    #pauseBtn{top:auto;right:14px;bottom:calc(200px + env(safe-area-inset-bottom))}
+    #pauseBtn{top:auto;right:14px;bottom:calc(252px + env(safe-area-inset-bottom))}
     #msg{top:32%}#submsg{top:calc(32% + 40px)}
   }
 </style>
@@ -178,7 +179,7 @@
 <!-- touch -->
 <div id="touch">
   <div class="tbtn" id="tL">◀</div><div class="tbtn" id="tR">▶</div>
-  <div class="tbtn" id="tHB">드리프트</div>
+  <div class="tbtn" id="tHB">드리프트</div><div class="tbtn" id="tRst">복귀</div>
   <div class="tbtn" id="tB">−</div><div class="tbtn" id="tA">+</div>
 </div>
 
@@ -279,6 +280,7 @@
     <div class="btnrow" style="flex-direction:column">
       <button class="btn" id="btnResume">계속하기</button>
       <button class="btn cyan" id="btnFinish">🏁 세션 종료 · 결과 보기</button>
+      <button class="btn ghost" id="btnAuto">🚗 오토 액셀: 켜짐</button>
       <button class="btn ghost" id="btnRestart">처음부터</button>
       <button class="btn ghost" id="btnSound">🔊 사운드 켜짐</button>
       <button class="btn ghost" id="btnQuit">타이틀로</button>
@@ -556,23 +558,60 @@ function pollKeys(){
   input.brake=(k.ArrowDown||k.KeyS)?1:0;
   input.hb=!!(k.Space);
 }
-/* touch */
+/* touch: 화면 전체에서 모든 포인터를 추적해 버튼 존 판정 (멀티터치/슬라이드 안정) */
 const touchEl=$('touch');
 const isTouch=matchMedia('(pointer:coarse)').matches;
-if(isTouch){ $('ctlHint').innerHTML='화면 버튼으로 조작: ◀▶ 조향 · <b>+</b> 가속 · <b>−</b> 브레이크 · 드리프트 버튼'; }
-const tstate={L:0,R:0,A:0,B:0,HB:0};
-[['tL','L'],['tR','R'],['tA','A'],['tB','B'],['tHB','HB']].forEach(([id,kk])=>{
-  const el=$(id);
-  const on=e=>{e.preventDefault();tstate[kk]=1;el.classList.add('press');audio.init();audio.resume();};
-  const off=e=>{e.preventDefault();tstate[kk]=0;el.classList.remove('press');};
-  el.addEventListener('pointerdown',on);el.addEventListener('pointerup',off);
-  el.addEventListener('pointercancel',off);el.addEventListener('pointerleave',off);
-});
+let autoAccel=store.read('autoAccel',isTouch);          // 터치 기기는 오토 액셀 기본 켜짐
+if(isTouch){ $('ctlHint').innerHTML='◀▶ 조향 (오토 액셀 기본 켜짐) · <b>−</b> 브레이크 · <b>+</b> 수동 가속 · 드리프트/복귀 버튼 · 여러 버튼 동시 조작 가능'; }
+const tstate={L:0,R:0,A:0,B:0,HB:0,RST:0};
+const T_BTNS=[['tL','L'],['tR','R'],['tA','A'],['tB','B'],['tHB','HB'],['tRst','RST']];
+T_BTNS.forEach(([id])=>{$(id).style.pointerEvents='none';}); // 버튼은 표시 전용
+const activePts=new Map();
+let rstLatch=false;
+function refreshTouchState(){
+  const prevRst=tstate.RST;
+  for(const k in tstate)tstate[k]=0;
+  if(activePts.size){
+    const rects=T_BTNS.map(([id,k])=>[ $(id).getBoundingClientRect(), k ]);
+    for(const p of activePts.values()){
+      for(const [r,k] of rects){
+        if(p.x>=r.left-16&&p.x<=r.right+16&&p.y>=r.top-16&&p.y<=r.bottom+16)tstate[k]=1;
+      }
+    }
+  }
+  T_BTNS.forEach(([id,k])=>$(id).classList.toggle('press',!!tstate[k]));
+  if(tstate.RST&&!prevRst&&!rstLatch){rstLatch=true;game.resetCar();}
+  if(!tstate.RST)rstLatch=false;
+}
+function touchZoneHit(x,y){
+  for(const [id] of T_BTNS){const r=$(id).getBoundingClientRect();
+    if(x>=r.left-16&&x<=r.right+16&&y>=r.top-16&&y<=r.bottom+16)return true;}
+  return false;
+}
+addEventListener('pointerdown',e=>{
+  if(!touchEl.classList.contains('on')||e.pointerType==='mouse'&&e.button!==0)return;
+  if(touchZoneHit(e.clientX,e.clientY)){
+    activePts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    refreshTouchState();audio.init();audio.resume();
+    e.preventDefault();
+  }
+},{passive:false});
+addEventListener('pointermove',e=>{
+  if(!activePts.has(e.pointerId))return;
+  activePts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  refreshTouchState();e.preventDefault();
+},{passive:false});
+['pointerup','pointercancel'].forEach(ev=>addEventListener(ev,e=>{
+  if(!activePts.has(e.pointerId))return;
+  activePts.delete(e.pointerId);refreshTouchState();
+},{passive:false}));
+addEventListener('blur',()=>{activePts.clear();refreshTouchState();});
 function pollTouch(){
   if(!isTouch)return;
   if(tstate.L||tstate.R)input.steer=tstate.R-tstate.L;
+  if(autoAccel&&game.state==='run'&&!game.paused&&(game.mode!=='race'||game.started)&&!tstate.B)input.throttle=1;
   if(tstate.A)input.throttle=1;
-  if(tstate.B)input.brake=1;
+  if(tstate.B){input.brake=1;input.throttle=0;}
   if(tstate.HB)input.hb=true;
 }
 /* gamepad */
@@ -674,14 +713,19 @@ class Car{
     // 통합
     vx=f[0]*this.vF+rr[0]*this.vLat; vy=f[1]*this.vF+rr[1]*this.vLat;
     this.x+=vx*dt; this.y+=vy*dt;
-    // 외곽 벽 (soft barrier)
+    // 외곽 벽: 바깥 방향 속도 성분만 제거 → 벽을 따라 미끄러짐 (박힘 방지)
     if(hardOff){
       const n=track.nrm[loc.i],sgn=Math.sign(loc.lat);
-      const wallDist=halfW+7.5;
-      this.x-=n[0]*sgn*(off-7.5); this.y-=n[1]*sgn*(off-7.5);
-      const vn=vx*n[0]*sgn+vy*n[1]*sgn;
-      if(vn>0){ this.vF*=.72; this.vLat*=-.3;
-        if(this.isPlayer&&v>8){fx.sparks(this.x,this.y,10+v);audio.thud(v/40);} }
+      const nx=n[0]*sgn,ny=n[1]*sgn;
+      this.x-=nx*(off-7.5); this.y-=ny*(off-7.5);
+      const vn=vx*nx+vy*ny;
+      if(vn>0){
+        vx-=nx*vn; vy-=ny*vn; vx*=.96; vy*=.96;
+        const f2=[Math.cos(this.ang),Math.sin(this.ang)],r2=[-f2[1],f2[0]];
+        this.vF=vx*f2[0]+vy*f2[1]; this.vLat=vx*r2[0]+vy*r2[1];
+        if(this.isPlayer&&vn>6){fx.sparks(this.x,this.y,10+vn*2);audio.thud(vn/28);
+          if(navigator.vibrate)try{navigator.vibrate(40);}catch(e){}}
+      }
     }
     // 진행도
     const dsRaw=loc.s-this.s;
@@ -1379,6 +1423,16 @@ const game={
             if(Math.abs(rel)>4){fx.sparks((a.x+b.x)/2,(a.y+b.y)/2,8);audio.thud(Math.abs(rel)/22);} } }
       }
     }
+    // 코스 밖에 갇힌 플레이어 자동 구조
+    if(!AUTO){
+      const p2=this.player;
+      const off2=Math.abs(p2.lat)-track.width[p2.idx]/2;
+      if(off2>4&&Math.abs(p2.vF)<1.2)p2._pinT=(p2._pinT||0)+dt; else p2._pinT=0;
+      if(p2._pinT>2.5){
+        p2._pinT=0;p2.place(p2.s,0);p2.curLapValid=false;
+        ui.toast('자동 코스 복귀 — 이번 랩 무효');
+      }
+    }
     // 고스트
     if(this.mode==='ta'){
       const p=this.player;
@@ -1652,6 +1706,10 @@ $('btnSaveName').onclick=()=>game.saveEntry();
 $('nameIn').addEventListener('keydown',e=>{if(e.key==='Enter')game.saveEntry();});
 $('btnResume').onclick=()=>game.togglePause();
 $('btnFinish').onclick=()=>{game.paused=false;$('scrPause').classList.add('hidden');game.showResult();};
+const syncAutoBtn=()=>{$('btnAuto').textContent='🚗 오토 액셀: '+(autoAccel?'켜짐':'꺼짐');};
+syncAutoBtn();
+$('btnAuto').onclick=()=>{autoAccel=!autoAccel;store.write('autoAccel',autoAccel);syncAutoBtn();
+  ui.toast(autoAccel?'오토 액셀 켜짐 — 브레이크(−)만 신경 쓰세요':'오토 액셀 꺼짐 — + 버튼으로 가속');};
 $('btnRestart').onclick=()=>{game.paused=false;$('scrPause').classList.add('hidden');
   game.mode==='ta'?game.startTA():game.startRace();};
 $('btnQuit').onclick=()=>{if(game.pendingEntry)game.saveEntry();
@@ -1665,7 +1723,8 @@ addEventListener('visibilitychange',()=>{if(document.hidden&&game.state==='run'&
 ui.titleBest();
 
 /* 디버그 훅 (자동 주행 검증용) */
-window.__YNR={game,track,best:()=>best,top10:()=>top10,ghost,ui,
+window.__YNR={game,track,best:()=>best,top10:()=>top10,ghost,ui,input,tstate,
+  get autoAccel(){return autoAccel;},
   startTA:()=>game.startTA(),startRace:()=>game.startRace()};
 if(AUTO){ setTimeout(()=>{game.startTA();},300); }
 </script>
